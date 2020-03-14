@@ -1,0 +1,2580 @@
+
+; 64tass Turbo Assembler Macro V1.54.1900 listing file
+; 64tass -D UNITTEST= -D TRACE_LEVEL=0 --long-address --flat -b --m65816 --intel-hex -o spaceship.hex --list=spaceship.lst --labels=spaceship.lbl src\spaceship.s
+; Sat Mar 14 16:20:05 2020
+
+;Offset	;Hex		;Monitor	;Source
+
+;******  Command line definitions
+
+=					UNITTEST=
+=0					TRACE_LEVEL=0
+
+;******  Processing input file: src\spaceship.s
+
+
+;******  Processing file: src\macros.s
+
+
+;******  Return to file: src\spaceship.s
+
+
+;******  Processing file: src\vicky_def.s
+
+=$af0000				MASTER_CTRL_REG_L	      = $AF0000
+=$01					Mstr_Ctrl_Text_Mode_En  = $01       ; Enable the Text Mode
+=$02					Mstr_Ctrl_Text_Overlay  = $02       ; Enable the Overlay of the text mode on top of Graphic Mode (the Background Color is ignored)
+=$04					Mstr_Ctrl_Graph_Mode_En = $04       ; Enable the Graphic Mode
+=$08					Mstr_Ctrl_Bitmap_En     = $08       ; Enable the Bitmap Module In Vicky
+=$10					Mstr_Ctrl_TileMap_En    = $10       ; Enable the Tile Module in Vicky
+=$20					Mstr_Ctrl_Sprite_En     = $20       ; Enable the Sprite Module in Vicky
+=$40					Mstr_Ctrl_GAMMA_En      = $40       ; this Enable the GAMMA correction - The Analog and DVI have different color value, the GAMMA is great to correct the difference
+=$80					Mstr_Ctrl_Disable_Vid   = $80       ; This will disable the Scanning of the Video hence giving 100% bandwith to the CPU
+=$af0001				MASTER_CTRL_REG_H	      = $AF0001
+=$af0002				VKY_RESERVED_00         = $AF0002
+=$af0003				VKY_RESERVED_01         = $AF0003
+=$01					Border_Ctrl_Enable      = $01
+=$af0004				BORDER_CTRL_REG         = $AF0004 ; Bit[0] - Enable (1 by default)  Bit[4..6]: X Scroll Offset ( Will scroll Left) (Acceptable Value: 0..7)
+=$af0005				BORDER_COLOR_B          = $AF0005
+=$af0006				BORDER_COLOR_G          = $AF0006
+=$af0007				BORDER_COLOR_R          = $AF0007
+=$af0008				BORDER_X_SIZE           = $AF0008; X-  Values: 0 - 32 (Default: 32)
+=$af0009				BORDER_Y_SIZE           = $AF0009; Y- Values 0 -32 (Default: 32)
+=$af000d				BACKGROUND_COLOR_B      = $AF000D ; When in Graphic Mode, if a pixel is "0" then the Background pixel is chosen
+=$af000e				BACKGROUND_COLOR_G      = $AF000E
+=$af000f				BACKGROUND_COLOR_R      = $AF000F ;
+=$af0010				VKY_TXT_CURSOR_CTRL_REG = $AF0010   ;[0]  Enable Text Mode
+=$01					Vky_Cursor_Enable       = $01
+=$02					Vky_Cursor_Flash_Rate0  = $02
+=$04					Vky_Cursor_Flash_Rate1  = $04
+=$08					Vky_Cursor_FONT_Page0   = $08       ; Pick Font Page 0 or Font Page 1
+=$10					Vky_Cursor_FONT_Page1   = $10       ; Pick Font Page 0 or Font Page 1
+=$af0011				VKY_TXT_START_ADD_PTR   = $AF0011   ; This is an offset to change the Starting address of the Text Mode Buffer (in x)
+=$af0012				VKY_TXT_CURSOR_CHAR_REG = $AF0012
+=$af0013				VKY_TXT_CURSOR_COLR_REG = $AF0013
+=$af0014				VKY_TXT_CURSOR_X_REG_L  = $AF0014
+=$af0015				VKY_TXT_CURSOR_X_REG_H  = $AF0015
+=$af0016				VKY_TXT_CURSOR_Y_REG_L  = $AF0016
+=$af0017				VKY_TXT_CURSOR_Y_REG_H  = $AF0017
+=$af001b				VKY_LINE_IRQ_CTRL_REG   = $AF001B ;[0] - Enable Line 0, [1] -Enable Line 1
+=$af001c				VKY_LINE0_CMP_VALUE_LO  = $AF001C ;Write Only [7:0]
+=$af001d				VKY_LINE0_CMP_VALUE_HI  = $AF001D ;Write Only [3:0]
+=$af001e				VKY_LINE1_CMP_VALUE_LO  = $AF001E ;Write Only [7:0]
+=$af001f				VKY_LINE1_CMP_VALUE_HI  = $AF001F ;Write Only [3:0]
+=$af001c				VKY_INFO_CHIP_NUM_L     = $AF001C
+=$af001d				VKY_INFO_CHIP_NUM_H     = $AF001D
+=$af001e				VKY_INFO_CHIP_VER_L     = $AF001E
+=$af001f				VKY_INFO_CHIP_VER_H     = $AF001F
+=$01					TILE_Enable             = $01
+=$02					TILE_LUT0               = $02
+=$04					TILE_LUT1               = $04
+=$08					TILE_LUT2               = $08
+=$80					TILESHEET_256x256_En    = $80   ; 0 -> Sequential, 1-> 256x256 Tile Sheet Striding
+=$af0100				TL0_CONTROL_REG         = $AF0100       ; Bit[0] - Enable, Bit[3:1] - LUT Select,
+=$af0101				TL0_START_ADDY_L        = $AF0101       ; Not USed right now - Starting Address to where is the MAP
+=$af0102				TL0_START_ADDY_M        = $AF0102
+=$af0103				TL0_START_ADDY_H        = $AF0103
+=$af0104				TL0_MAP_X_STRIDE_L      = $AF0104       ; The Stride of the Map
+=$af0105				TL0_MAP_X_STRIDE_H      = $AF0105
+=$af0106				TL0_MAP_Y_STRIDE_L      = $AF0106       ; The Stride of the Map
+=$af0107				TL0_MAP_Y_STRIDE_H      = $AF0107
+=$af0108				TL1_CONTROL_REG         = $AF0108       ; Bit[0] - Enable, Bit[3:1] - LUT Select,
+=$af0109				TL1_START_ADDY_L        = $AF0109       ; Not USed right now - Starting Address to where is the MAP
+=$af010a				TL1_START_ADDY_M        = $AF010A
+=$af010b				TL1_START_ADDY_H        = $AF010B
+=$af010c				TL1_MAP_X_STRIDE_L      = $AF010C       ; The Stride of the Map
+=$af010d				TL1_MAP_X_STRIDE_H      = $AF010D
+=$af010e				TL1_MAP_Y_STRIDE_L      = $AF010E       ; The Stride of the Map
+=$af010f				TL1_MAP_Y_STRIDE_H      = $AF010F
+=$af0110				TL2_CONTROL_REG         = $AF0110       ; Bit[0] - Enable, Bit[3:1] - LUT Select,
+=$af0111				TL2_START_ADDY_L        = $AF0111       ; Not USed right now - Starting Address to where is the MAP
+=$af0112				TL2_START_ADDY_M        = $AF0112
+=$af0113				TL2_START_ADDY_H        = $AF0113
+=$af0114				TL2_MAP_X_STRIDE_L      = $AF0114       ; The Stride of the Map
+=$af0115				TL2_MAP_X_STRIDE_H      = $AF0115
+=$af0116				TL2_MAP_Y_STRIDE_L      = $AF0116       ; The Stride of the Map
+=$af0117				TL2_MAP_Y_STRIDE_H      = $AF0117
+=$af0118				TL3_CONTROL_REG         = $AF0118       ; Bit[0] - Enable, Bit[3:1] - LUT Select,
+=$af0119				TL3_START_ADDY_L        = $AF0119       ; Not USed right now - Starting Address to where is the MAP
+=$af011a				TL3_START_ADDY_M        = $AF011A
+=$af011b				TL3_START_ADDY_H        = $AF011B
+=$af011c				TL3_MAP_X_STRIDE_L      = $AF011C       ; The Stride of the Map
+=$af011d				TL3_MAP_X_STRIDE_H      = $AF011D
+=$af011e				TL3_MAP_Y_STRIDE_L      = $AF011E       ; The Stride of the Map
+=$af011f				TL3_MAP_Y_STRIDE_H      = $AF011F
+=$af0140				BM_CONTROL_REG          = $AF0140
+=$af0141				BM_START_ADDY_L         = $AF0141
+=$af0142				BM_START_ADDY_M         = $AF0142
+=$af0143				BM_START_ADDY_H         = $AF0143
+=$af0144				BM_X_SIZE_L             = $AF0144
+=$af0145				BM_X_SIZE_H             = $AF0145
+=$af0146				BM_Y_SIZE_L             = $AF0146
+=$af0147				BM_Y_SIZE_H             = $AF0147
+=$af0148				BM_RESERVED_0           = $AF0148
+=$af0149				BM_RESERVED_1           = $AF0149
+=$af014a				BM_RESERVED_2           = $AF014A
+=$af014b				BM_RESERVED_3           = $AF014B
+=$af014c				BM_RESERVED_4           = $AF014C
+=$af014d				BM_RESERVED_5           = $AF014D
+=$af014e				BM_RESERVED_6           = $AF014E
+=$af014f				BM_RESERVED_7           = $AF014F
+=$01					SPRITE_Enable             = $01
+=$02					SPRITE_LUT0               = $02 ; This is the LUT that the Sprite will use
+=$04					SPRITE_LUT1               = $04
+=$08					SPRITE_LUT2               = $08 ; Only 4 LUT for Now, So this bit is not used.
+=$10					SPRITE_DEPTH0             = $10 ; This is the Layer the Sprite will be Displayed in
+=$20					SPRITE_DEPTH1             = $20
+=$40					SPRITE_DEPTH2             = $40
+=$af0200				SP00_CONTROL_REG        = $AF0200
+=$af0201				SP00_ADDY_PTR_L         = $AF0201
+=$af0202				SP00_ADDY_PTR_M         = $AF0202
+=$af0203				SP00_ADDY_PTR_H         = $AF0203
+=$af0204				SP00_X_POS_L            = $AF0204
+=$af0205				SP00_X_POS_H            = $AF0205
+=$af0206				SP00_Y_POS_L            = $AF0206
+=$af0207				SP00_Y_POS_H            = $AF0207
+=$af0208				SP01_CONTROL_REG        = $AF0208
+=$af0209				SP01_ADDY_PTR_L         = $AF0209
+=$af020a				SP01_ADDY_PTR_M         = $AF020A
+=$af020b				SP01_ADDY_PTR_H         = $AF020B
+=$af020c				SP01_X_POS_L            = $AF020C
+=$af020d				SP01_X_POS_H            = $AF020D
+=$af020e				SP01_Y_POS_L            = $AF020E
+=$af020f				SP01_Y_POS_H            = $AF020F
+=$af0210				SP02_CONTROL_REG        = $AF0210
+=$af0211				SP02_ADDY_PTR_L         = $AF0211
+=$af0212				SP02_ADDY_PTR_M         = $AF0212
+=$af0213				SP02_ADDY_PTR_H         = $AF0213
+=$af0214				SP02_X_POS_L            = $AF0214
+=$af0215				SP02_X_POS_H            = $AF0215
+=$af0216				SP02_Y_POS_L            = $AF0216
+=$af0217				SP02_Y_POS_H            = $AF0217
+=$af0218				SP03_CONTROL_REG        = $AF0218
+=$af0219				SP03_ADDY_PTR_L         = $AF0219
+=$af021a				SP03_ADDY_PTR_M         = $AF021A
+=$af021b				SP03_ADDY_PTR_H         = $AF021B
+=$af021c				SP03_X_POS_L            = $AF021C
+=$af021d				SP03_X_POS_H            = $AF021D
+=$af021e				SP03_Y_POS_L            = $AF021E
+=$af021f				SP03_Y_POS_H            = $AF021F
+=$af0220				SP04_CONTROL_REG        = $AF0220
+=$af0221				SP04_ADDY_PTR_L         = $AF0221
+=$af0222				SP04_ADDY_PTR_M         = $AF0222
+=$af0223				SP04_ADDY_PTR_H         = $AF0223
+=$af0224				SP04_X_POS_L            = $AF0224
+=$af0225				SP04_X_POS_H            = $AF0225
+=$af0226				SP04_Y_POS_L            = $AF0226
+=$af0227				SP04_Y_POS_H            = $AF0227
+=$af0228				SP05_CONTROL_REG        = $AF0228
+=$af0229				SP05_ADDY_PTR_L         = $AF0229
+=$af022a				SP05_ADDY_PTR_M         = $AF022A
+=$af022b				SP05_ADDY_PTR_H         = $AF022B
+=$af022c				SP05_X_POS_L            = $AF022C
+=$af022d				SP05_X_POS_H            = $AF022D
+=$af022e				SP05_Y_POS_L            = $AF022E
+=$af022f				SP05_Y_POS_H            = $AF022F
+=$af0230				SP06_CONTROL_REG        = $AF0230
+=$af0231				SP06_ADDY_PTR_L         = $AF0231
+=$af0232				SP06_ADDY_PTR_M         = $AF0232
+=$af0233				SP06_ADDY_PTR_H         = $AF0233
+=$af0234				SP06_X_POS_L            = $AF0234
+=$af0235				SP06_X_POS_H            = $AF0235
+=$af0236				SP06_Y_POS_L            = $AF0236
+=$af0237				SP06_Y_POS_H            = $AF0237
+=$af0238				SP07_CONTROL_REG        = $AF0238
+=$af0239				SP07_ADDY_PTR_L         = $AF0239
+=$af023a				SP07_ADDY_PTR_M         = $AF023A
+=$af023b				SP07_ADDY_PTR_H         = $AF023B
+=$af023c				SP07_X_POS_L            = $AF023C
+=$af023d				SP07_X_POS_H            = $AF023D
+=$af023e				SP07_Y_POS_L            = $AF023E
+=$af023f				SP07_Y_POS_H            = $AF023F
+=$af0240				SP08_CONTROL_REG        = $AF0240
+=$af0241				SP08_ADDY_PTR_L         = $AF0241
+=$af0242				SP08_ADDY_PTR_M         = $AF0242
+=$af0243				SP08_ADDY_PTR_H         = $AF0243
+=$af0244				SP08_X_POS_L            = $AF0244
+=$af0245				SP08_X_POS_H            = $AF0245
+=$af0246				SP08_Y_POS_L            = $AF0246
+=$af0247				SP08_Y_POS_H            = $AF0247
+=$af0248				SP09_CONTROL_REG        = $AF0248
+=$af0249				SP09_ADDY_PTR_L         = $AF0249
+=$af024a				SP09_ADDY_PTR_M         = $AF024A
+=$af024b				SP09_ADDY_PTR_H         = $AF024B
+=$af024c				SP09_X_POS_L            = $AF024C
+=$af024d				SP09_X_POS_H            = $AF024D
+=$af024e				SP09_Y_POS_L            = $AF024E
+=$af024f				SP09_Y_POS_H            = $AF024F
+=$af0250				SP10_CONTROL_REG        = $AF0250
+=$af0251				SP10_ADDY_PTR_L         = $AF0251
+=$af0252				SP10_ADDY_PTR_M         = $AF0252
+=$af0253				SP10_ADDY_PTR_H         = $AF0253
+=$af0254				SP10_X_POS_L            = $AF0254
+=$af0255				SP10_X_POS_H            = $AF0255
+=$af0256				SP10_Y_POS_L            = $AF0256
+=$af0257				SP10_Y_POS_H            = $AF0257
+=$af0258				SP11_CONTROL_REG        = $AF0258
+=$af0259				SP11_ADDY_PTR_L         = $AF0259
+=$af025a				SP11_ADDY_PTR_M         = $AF025A
+=$af025b				SP11_ADDY_PTR_H         = $AF025B
+=$af025c				SP11_X_POS_L            = $AF025C
+=$af025d				SP11_X_POS_H            = $AF025D
+=$af025e				SP11_Y_POS_L            = $AF025E
+=$af025f				SP11_Y_POS_H            = $AF025F
+=$af0260				SP12_CONTROL_REG        = $AF0260
+=$af0261				SP12_ADDY_PTR_L         = $AF0261
+=$af0262				SP12_ADDY_PTR_M         = $AF0262
+=$af0263				SP12_ADDY_PTR_H         = $AF0263
+=$af0264				SP12_X_POS_L            = $AF0264
+=$af0265				SP12_X_POS_H            = $AF0265
+=$af0266				SP12_Y_POS_L            = $AF0266
+=$af0267				SP12_Y_POS_H            = $AF0267
+=$af0268				SP13_CONTROL_REG        = $AF0268
+=$af0269				SP13_ADDY_PTR_L         = $AF0269
+=$af026a				SP13_ADDY_PTR_M         = $AF026A
+=$af026b				SP13_ADDY_PTR_H         = $AF026B
+=$af026c				SP13_X_POS_L            = $AF026C
+=$af026d				SP13_X_POS_H            = $AF026D
+=$af026e				SP13_Y_POS_L            = $AF026E
+=$af026f				SP13_Y_POS_H            = $AF026F
+=$af0270				SP14_CONTROL_REG        = $AF0270
+=$af0271				SP14_ADDY_PTR_L         = $AF0271
+=$af0272				SP14_ADDY_PTR_M         = $AF0272
+=$af0273				SP14_ADDY_PTR_H         = $AF0273
+=$af0274				SP14_X_POS_L            = $AF0274
+=$af0275				SP14_X_POS_H            = $AF0275
+=$af0276				SP14_Y_POS_L            = $AF0276
+=$af0277				SP14_Y_POS_H            = $AF0277
+=$af0278				SP15_CONTROL_REG        = $AF0278
+=$af0279				SP15_ADDY_PTR_L         = $AF0279
+=$af027a				SP15_ADDY_PTR_M         = $AF027A
+=$af027b				SP15_ADDY_PTR_H         = $AF027B
+=$af027c				SP15_X_POS_L            = $AF027C
+=$af027d				SP15_X_POS_H            = $AF027D
+=$af027e				SP15_Y_POS_L            = $AF027E
+=$af027f				SP15_Y_POS_H            = $AF027F
+=$af0280				SP16_CONTROL_REG        = $AF0280
+=$af0281				SP16_ADDY_PTR_L         = $AF0281
+=$af0282				SP16_ADDY_PTR_M         = $AF0282
+=$af0283				SP16_ADDY_PTR_H         = $AF0283
+=$af0284				SP16_X_POS_L            = $AF0284
+=$af0285				SP16_X_POS_H            = $AF0285
+=$af0286				SP16_Y_POS_L            = $AF0286
+=$af0287				SP16_Y_POS_H            = $AF0287
+=$af0288				SP17_CONTROL_REG        = $AF0288
+=$af0289				SP17_ADDY_PTR_L         = $AF0289
+=$af028a				SP17_ADDY_PTR_M         = $AF028A
+=$af028b				SP17_ADDY_PTR_H         = $AF028B
+=$af028c				SP17_X_POS_L            = $AF028C
+=$af028d				SP17_X_POS_H            = $AF028D
+=$af028e				SP17_Y_POS_L            = $AF028E
+=$af028f				SP17_Y_POS_H            = $AF028F
+=$af0400				VDMA_CONTROL_REG        = $AF0400
+=$01					VDMA_CTRL_Enable        = $01
+=$02					VDMA_CTRL_1D_2D         = $02     ; 0 - 1D (Linear) Transfer , 1 - 2D (Block) Transfer
+=$04					VDMA_CTRL_TRF_Fill      = $04     ; 0 - Transfer Src -> Dst, 1 - Fill Destination with "Byte2Write"
+=$08					VDMA_CTRL_Int_Enable    = $08     ; Set to 1 to Enable the Generation of Interrupt when the Transfer is over.
+=$80					VDMA_CTRL_Start_TRF     = $80     ; Set to 1 To Begin Process, Need to Cleared before, you can start another
+=$af0401				VDMA_BYTE_2_WRITE       = $AF0401 ; Write Only - Byte to Write in the Fill Function
+=$af0401				VDMA_STATUS_REG         = $AF0401 ; Read only
+=$01					VDMA_STAT_Size_Err      = $01     ; If Set to 1, Overall Size is Invalid
+=$02					VDMA_STAT_Dst_Add_Err   = $02     ; If Set to 1, Destination Address Invalid
+=$04					VDMA_STAT_Src_Add_Err   = $04     ; If Set to 1, Source Address Invalid
+=$80					VDMA_STAT_VDMA_IPS      = $80     ; If Set to 1, VDMA Transfer in Progress (this Inhibit CPU Access to Mem)
+=$af0402				VDMA_SRC_ADDY_L         = $AF0402 ; Pointer to the Source of the Data to be stransfered
+=$af0403				VDMA_SRC_ADDY_M         = $AF0403 ; This needs to be within Vicky's Range ($00_0000 - $3F_0000)
+=$af0404				VDMA_SRC_ADDY_H         = $AF0404
+=$af0405				VDMA_DST_ADDY_L         = $AF0405 ; Destination Pointer within Vicky's video memory Range
+=$af0406				VDMA_DST_ADDY_M         = $AF0406 ; ($00_0000 - $3F_0000)
+=$af0407				VDMA_DST_ADDY_H         = $AF0407
+=$af0408				VDMA_SIZE_L             = $AF0408 ; Maximum Value: $40:0000 (4Megs)
+=$af0409				VDMA_SIZE_M             = $AF0409
+=$af040a				VDMA_SIZE_H             = $AF040A
+=$af040b				VDMA_IGNORED            = $AF040B
+=$af0408				VDMA_X_SIZE_L           = $AF0408 ; Maximum Value: 65535
+=$af0409				VDMA_X_SIZE_H           = $AF0409
+=$af040a				VDMA_Y_SIZE_L           = $AF040A ; Maximum Value: 65535
+=$af040b				VDMA_Y_SIZE_H           = $AF040B
+=$af040c				VDMA_SRC_STRIDE_L       = $AF040C ; Always use an Even Number ( The Engine uses Even Ver of that value)
+=$af040d				VDMA_SRC_STRIDE_H       = $AF040D ;
+=$af040e				VDMA_DST_STRIDE_L       = $AF040E ; Always use an Even Number ( The Engine uses Even Ver of that value)
+=$af040f				VDMA_DST_STRIDE_H       = $AF040F ;
+=$af0500				MOUSE_PTR_GRAP0_START    = $AF0500 ; 16 x 16 = 256 Pixels (Grey Scale) 0 = Transparent, 1 = Black , 255 = White
+=$af05ff				MOUSE_PTR_GRAP0_END      = $AF05FF ; Pointer 0
+=$af0600				MOUSE_PTR_GRAP1_START    = $AF0600 ;
+=$af06ff				MOUSE_PTR_GRAP1_END      = $AF06FF ; Pointer 1
+=$af0700				MOUSE_PTR_CTRL_REG_L    = $AF0700 ; Bit[0] Enable, Bit[1] = 0  ( 0 = Pointer0, 1 = Pointer1)
+=$af0701				MOUSE_PTR_CTRL_REG_H    = $AF0701 ;
+=$af0702				MOUSE_PTR_X_POS_L       = $AF0702 ; X Position (0 - 639) (Can only read now) Writing will have no effect
+=$af0703				MOUSE_PTR_X_POS_H       = $AF0703 ;
+=$af0704				MOUSE_PTR_Y_POS_L       = $AF0704 ; Y Position (0 - 479) (Can only read now) Writing will have no effect
+=$af0705				MOUSE_PTR_Y_POS_H       = $AF0705 ;
+=$af0706				MOUSE_PTR_BYTE0         = $AF0706 ; Byte 0 of Mouse Packet (you must write 3 Bytes)
+=$af0707				MOUSE_PTR_BYTE1         = $AF0707 ; Byte 1 of Mouse Packet (if you don't, then )
+=$af0708				MOUSE_PTR_BYTE2         = $AF0708 ; Byte 2 of Mouse Packet (state Machine will be jammed in 1 state)
+=$af070b				C256F_MODEL_MAJOR       = $AF070B ;
+=$af070c				C256F_MODEL_MINOR       = $AF070C ;
+=$af070d				FPGA_DOR                = $AF070D ;
+=$af070e				FPGA_MOR                = $AF070E ;
+=$af070f				FPGA_YOR                = $AF070F ;
+=$af1f40				FG_CHAR_LUT_PTR         = $AF1F40
+=$af1f80				BG_CHAR_LUT_PTR		      = $AF1F80
+=$af2000				GRPH_LUT0_PTR		        = $AF2000
+=$af2400				GRPH_LUT1_PTR		        = $AF2400
+=$af2800				GRPH_LUT2_PTR		        = $AF2800
+=$af2c00				GRPH_LUT3_PTR		        = $AF2C00
+=$af3000				GRPH_LUT4_PTR		        = $AF3000
+=$af3400				GRPH_LUT5_PTR		        = $AF3400
+=$af3800				GRPH_LUT6_PTR		        = $AF3800
+=$af3c00				GRPH_LUT7_PTR		        = $AF3C00
+=$af4000				GAMMA_B_LUT_PTR		      = $AF4000
+=$af4100				GAMMA_G_LUT_PTR		      = $AF4100
+=$af4200				GAMMA_R_LUT_PTR		      = $AF4200
+=$af5000				TILE_MAP0       		    = $AF5000     ;$AF5000 - $AF57FF
+=$af5800				TILE_MAP1               = $AF5800     ;$AF5800 - $AF5FFF
+=$af6000				TILE_MAP2               = $AF6000     ;$AF6000 - $AF67FF
+=$af6800				TILE_MAP3               = $AF6800     ;$AF6800 - $AF6FFF
+=$af8000				FONT_MEMORY_BANK0       = $AF8000     ;$AF8000 - $AF87FF
+=$af8800				FONT_MEMORY_BANK1       = $AF8800     ;$AF8800 - $AF8FFF
+=$afa000				CS_TEXT_MEM_PTR         = $AFA000
+=$afc000				CS_COLOR_MEM_PTR        = $AFC000
+=$afe000				BTX_START               = $AFE000     ; BEATRIX Registers
+=$afffff				BTX_END                 = $AFFFFF
+
+;******  Return to file: src\spaceship.s
+
+
+;******  Processing file: src\interrupt_def.s
+
+=$000140				INT_PENDING_REG0 = $000140 ;
+=$000141				INT_PENDING_REG1 = $000141 ;
+=$000142				INT_PENDING_REG2 = $000142 ;
+=$000143				INT_PENDING_REG3 = $000143 ; FMX Model
+=$000144				INT_POL_REG0     = $000144 ;
+=$000145				INT_POL_REG1     = $000145 ;
+=$000146				INT_POL_REG2     = $000146 ;
+=$000147				INT_POL_REG7     = $000147 ; FMX Model
+=$000148				INT_EDGE_REG0    = $000148 ;
+=$000149				INT_EDGE_REG1    = $000149 ;
+=$00014a				INT_EDGE_REG2    = $00014A ;
+=$00014b				INT_EDGE_REG3    = $00014B ; FMX Model
+=$00014c				INT_MASK_REG0    = $00014C ;
+=$00014d				INT_MASK_REG1    = $00014D ;
+=$00014e				INT_MASK_REG2    = $00014E ;
+=$00014f				INT_MASK_REG3    = $00014F ; FMX Model
+=$01					FNX0_INT00_SOF        = $01  ;Start of Frame @ 60FPS
+=$02					FNX0_INT01_SOL        = $02  ;Start of Line (Programmable)
+=$04					FNX0_INT02_TMR0       = $04  ;Timer 0 Interrupt
+=$08					FNX0_INT03_TMR1       = $08  ;Timer 1 Interrupt
+=$10					FNX0_INT04_TMR2       = $10  ;Timer 2 Interrupt
+=$20					FNX0_INT05_RTC        = $20  ;Real-Time Clock Interrupt
+=$40					FNX0_INT06_FDC        = $40  ;Floppy Disk Controller
+=$80					FNX0_INT07_MOUSE      = $80  ; Mouse Interrupt (INT12 in SuperIO IOspace)
+=$01					FNX1_INT00_KBD        = $01  ;Keyboard Interrupt
+=$02					FNX1_INT01_SC0        = $02  ;VICKY_II (INT2) Sprite 2 Sprite Collision
+=$04					FNX1_INT02_SC1        = $04  ;VICKY_II (INT3) Sprite 2 Tiles Collision
+=$08					FNX1_INT03_COM2       = $08  ;Serial Port 2
+=$10					FNX1_INT04_COM1       = $10  ;Serial Port 1
+=$20					FNX1_INT05_MPU401     = $20  ;Midi Controller Interrupt
+=$40					FNX1_INT06_LPT        = $40  ;Parallel Port
+=$80					FNX1_INT07_SDCARD     = $80  ;SD Card Controller Interrupt (CH376S)
+=$01					FNX2_INT00_OPL3       = $01  ;OPl3
+=$02					FNX2_INT01_GABE_INT0  = $02  ;GABE (INT0) - TBD
+=$04					FNX2_INT02_GABE_INT1  = $04  ;GABE (INT1) - TBD
+=$08					FNX2_INT03_SDMA       = $08  ;VICKY_II (INT4)
+=$10					FNX2_INT04_VDMA       = $10  ;VICKY_II (INT5)
+=$20					FNX2_INT05_GABE_INT2  = $20  ;GABE (INT2) - TBD
+=$40					FNX2_INT06_EXT        = $40  ;External Expansion
+=$80					FNX2_INT07_SDCARD_INS = $80  ; SDCARD Insertion
+=$01					FNX3_INT00_OPN2       = $01  ;OPN2
+=$02					FNX3_INT01_OPM        = $02  ;OPM
+=$04					FNX3_INT02_IDE        = $04  ;HDD IDE INTERRUPT
+=$08					FNX3_INT03_TBD        = $08  ;TBD
+=$10					FNX3_INT04_TBD        = $10  ;TBD
+=$20					FNX3_INT05_TBD        = $20  ;GABE (INT2) - TBD
+=$40					FNX3_INT06_TBD        = $40  ;External Expansion
+=$80					FNX3_INT07_TBD        = $80  ; SDCARD Insertion
+
+;******  Return to file: src\spaceship.s
+
+
+;******  Processing file: src\joystick_def.s
+
+=$afe800				JOYSTICK0           = $AFE800   ;(R) Joystick 0 - J7 (next to SD Card)
+=$afe801				JOYSTICK1           = $AFE801   ;(R) Joystick 1 - J8
+=$afe802				JOYSTICK2           = $AFE802   ;(R) Joystick 2 - J9
+=$afe803				JOYSTICK3           = $AFE803   ;(R) Joystick 3 - J10 (Next to Buzzer)
+=$afe804				JOYSTICK_MODE       = $AFE804
+=$01					NES_SNES_EN0        = $01       ; Enable the NES/SNES Mode on Port 0
+=$02					NES_SNES_EN1        = $02       ; Enable the NES/SNES Mode on Port 1
+=$04					NES_SNES_JOY        = $04       ; 0 = NES, 1 = SNES
+=$40					NES_SNES_DONE       = $40       ; Poll to see if the Deserializer is done
+=$80					NES_SNES_TRIG       = $80       ; Set to start the Serializer
+=$afe805				REVOFPCB_C          = $AFE805   ; You should read the ASCCII for "C"
+=$afe806				REVOFPCB_4          = $AFE806   ; You should read the ASCCII for "4"
+=$afe807				REVOFPCB_A          = $AFE807   ; You should read the ASCCII for "A"
+=$afe808				NES_SNES0_DAT_LO    = $AFE808   ; Contains the 8bits From NES and SNES
+=$afe809				SNES0_DAT_HI0       = $AFE809   ; Contains the extra 4 bit from the SNES Controller
+=$afe80a				NES_SNES1_DAT_LO    = $AFE80A
+=$afe80b				SNES1_DAT_HI0       = $AFE80B
+=$afe80c				CFP9301_REV         = $AFE80C   ; Hardware Revision of the CPLD Code
+=$afe80d				DIP_USER            = $AFE80D   ; Dip Switch 3/4/5 can be user Defined
+=$afe80e				DIP_BOOTMODE        = $AFE80E
+=$01					BOOT_MODE0          = $01
+=$02					BOOT_MODE1          = $02
+=$80					HD_INSTALLED        = $80
+=$00					DIP_BOOT_IDE        = $00
+=$01					DIP_BOOT_SDCARD     = $01
+=$02					DIP_BOOT_FLOPPY     = $02
+=$03					DIP_BOOT_BASIC      = $03
+
+;******  Return to file: src\spaceship.s
+
+
+;******  Processing file: src\memorymap.s
+
+
+;******  Return to file: src\spaceship.s
+
+
+;******  Processing file: src\gabe_def.s
+
+=$afe880				GABE_MSTR_CTRL      = $AFE880
+=$01					GABE_CTRL_PWR_LED   = $01     ; Controls the LED in the Front of the case (Next to the reset button)
+=$02					GABE_CTRL_SDC_LED   = $02     ; Controls the LED in the Front of the Case (Next to SDCard)
+=$10					GABE_CTRL_BUZZER    = $10     ; Controls the Buzzer
+=$80					GABE_CTRL_WRM_RST   = $80     ; Warm Reset (needs to Setup other registers)
+=$afe881				GABE_NOTUSED        = $AFE881 ; Reserved for future use
+=$afe882				GABE_RST_AUTH0      = $AFE882 ; Must Contain the BYTE $AD for Reset to Activate
+=$afe883				GABE_RST_AUTH1      = $AFE883 ; Must Contain the BYTE $DE for Reset to Activate
+=$afe884				GABE_RNG_DAT_LO     = $AFE884 ; Low Part of 16Bit RNG Generator
+=$afe885				GABE_RNG_DAT_HI     = $AFE885 ; Hi Part of 16Bit RNG Generator
+=$afe884				GABE_RNG_SEED_LO    = $AFE884 ; Low Part of 16Bit RNG Generator
+=$afe885				GABE_RNG_SEED_HI    = $AFE885 ; Hi Part of 16Bit RNG Generator
+=$afe886				GABE_RNG_STAT       = $AFE886 ;
+=$80					GABE_RNG_LFSR_DONE  = $80     ; indicates that Output = SEED Database
+=$afe886				GABE_RNG_CTRL       = $AFE886 ;
+=$01					GABE_RNG_CTRL_EN    = $01     ; Enable the LFSR BLOCK_LEN
+=$02					GABE_RNG_CTRL_DV    = $02     ; After Setting the Seed Value, Toggle that Bit for it be registered
+=$afe887				GABE_SYS_STAT       = $AFE887 ;
+=$01					GABE_SYS_STAT_MID0  = $01     ; Machine ID -- LSB
+=$02					GABE_SYS_STAT_MID1  = $02     ; Machine ID -- MSB
+=$08					GABE_SYS_STAT_EXP   = $08     ; if Zero, there is an Expansion Card Preset
+=$40					GABE_SYS_STAT_CPUA  = $40     ; Indicates the (8bit/16bit) Size of the Accumulator
+=$80					GABE_SYS_STAT_CPUX  = $80     ; Indicates the (8bit/16bit) Size of the Accumulator
+
+;******  Return to file: src\spaceship.s
+
+
+;******  Processing file: src\rtc_def.s
+
+=$af0800				RTC_SEC       = $AF0800 ;Seconds Register
+=$af0801				RTC_SEC_ALARM = $AF0801 ;Seconds Alarm Register
+=$af0802				RTC_MIN       = $AF0802 ;Minutes Register
+=$af0803				RTC_MIN_ALARM = $AF0803 ;Minutes Alarm Register
+=$af0804				RTC_HRS       = $AF0804 ;Hours Register
+=$af0805				RTC_HRS_ALARM = $AF0805 ;Hours Alarm Register
+=$af0806				RTC_DAY       = $AF0806 ;Day Register
+=$af0807				RTC_DAY_ALARM = $AF0807 ;Day Alarm Register
+=$af0808				RTC_DOW       = $AF0808 ;Day of Week Register
+=$af0809				RTC_MONTH     = $AF0809 ;Month Register
+=$af080a				RTC_YEAR      = $AF080A ;Year Register
+=$af080b				RTC_RATES     = $AF080B ;Rates Register
+=$af080c				RTC_ENABLE    = $AF080C ;Enables Register
+=$af080d				RTC_FLAGS     = $AF080D ;Flags Register
+=$af080e				RTC_CTRL      = $AF080E ;Control Register
+=$af080f				RTC_CENTURY   = $AF080F ;Century Register
+
+;******  Return to file: src\spaceship.s
+
+>fffc	00 30				VRESET          .word START         ; Set the RESET vector to point to the start of the code
+.0000					SPRITE
+>0000					X               .word ?             ; The x-coordinate of the sprite
+>0002					Y               .word ?             ; The y-coordinate of the sprite
+>0004					DX              .word ?             ; The per-tick change to the x-coordinate
+>0006					DY              .word ?             ; The per-tick change to the y-coordinate
+>0008					WASMOVING       .word ?             ; Indicates if the sprite was moving on the previous loop
+>000a					SPRITEADDR      .word ?             ; Address of the sprite's registers in Vicky
+>000c					BASEADDR        .dword ?            ; The base address (in Vicky space) of the sprite's animation frames (relative to $B0:0000)
+>0010					FRAME           .word ?             ; The index of the frame to display
+>0012					FRAMECOUNT      .word ?             ; The number of frames in the sprite animation
+>0014					FRAMEDELAY      .word ?             ; A counter to time frame flipping
+>0016					DELAYDEFAULT    .word ?             ; The reset value for the frame delay counter
+>0018					MOVEDELAY       .word ?             ; A counter to time movement in X,Y
+>001a					MOVEDELDEF      .word ?             ; The reset value for the movement delay counter
+>001c					ANIMPROC        .word ?             ; Pointer to the animation procedure for this type of sprite
+>001e					STATUS          .byte ?             ; Flags to indicate if an UPDATE or ANIMATE call is needed
+=$80					SP_STAT_ACTIVE = $80                ; The sprite is active and can be animated and updated
+=$60					SP_STAT_UPDATE = $60                ; The sprite has changed and needs to be updated to Vicky
+=$80					ML_STAT_ANIMATE = $80               ; Flag to indicate that the main loop can ANIMATE all the sprites
+=$aff100				SN76489 = $AFF100                   ; SN76489 chip's port
+=$00ffee				HIRQ = $00FFEE                      ; IRQ hardware vector
+=$b00000				VSHIP_STILL = $B00000               ; Address in VRAM of sprite image for the stationary space ship
+=11535360				VSHIP_UP = VSHIP_STILL + 32*32      ; Address in VRAM of the sprite image data for the ship pointing up
+=11540480				VTORPEDO = VSHIP_UP + 5*32*32       ; Address in VRAM of the torpedo sprite image data
+=11548672				VSTARS = VTORPEDO + 8*32*32         ; Address of the star field tiles in VRAM
+=1					SP_OFF_ADDR = 1                     ; Offset to the address register for a sprite
+=4					SP_OFF_X = 4                        ; Offset to the x coordinate register for a sprite
+=6					SP_OFF_Y = 6                        ; Offset to the y coordinate register for a sprite
+>2000					SRCPTR          .dword ?            ; Pointer to the source for data transfers
+>2004					DSTPTR          .dword ?            ; Pointer to the destination for data transfers
+>2008					COUNT           .word ?             ; The number of bytes to copy
+>200a					TEMP            .dword ?            ; A temporary variable
+>200e					SHIPSPEED       .word ?             ; Speed of the ship (pixels per vertical blank interrupt)
+>2010					JMPOPCODE       .byte ?             ; JMP opcode
+>2011					OLDIRQ          .word ?             ; Old IRQ handler
+>2013					INDPROC         .word ?             ; Pointer to a procedure to call indirectly
+>2015					JOY0            .word ?             ; Joystick 0 data
+>2017					BOUNDARY_R      .word ?             ; Right-most position of a sprite
+>2019					BOUNDARY_B      .word ?             ; Bottom-most position of a sprite
+>201b					NOISEVOL        .byte ?             ; Noise attenuation level
+>201c					TMPPTR          .dword ?            ; A temporary pointer
+>2020					REGPTR          .dword ?            ; A pointer to Vicky sprite registers
+>2024					STATUS          .byte ?             ; A status word for controlling the main loop
+=$002025				START_OF_SPRITES = *
+.2025					SHIP
+>2025					X               .word ?             ; The x-coordinate of the sprite
+>2027					Y               .word ?             ; The y-coordinate of the sprite
+>2029					DX              .word ?             ; The per-tick change to the x-coordinate
+>202b					DY              .word ?             ; The per-tick change to the y-coordinate
+>202d					WASMOVING       .word ?             ; Indicates if the sprite was moving on the previous loop
+>202f					SPRITEADDR      .word ?             ; Address of the sprite's registers in Vicky
+>2031					BASEADDR        .dword ?            ; The base address (in Vicky space) of the sprite's animation frames (relative to $B0:0000)
+>2035					FRAME           .word ?             ; The index of the frame to display
+>2037					FRAMECOUNT      .word ?             ; The number of frames in the sprite animation
+>2039					FRAMEDELAY      .word ?             ; A counter to time frame flipping
+>203b					DELAYDEFAULT    .word ?             ; The reset value for the frame delay counter
+>203d					MOVEDELAY       .word ?             ; A counter to time movement in X,Y
+>203f					MOVEDELDEF      .word ?             ; The reset value for the movement delay counter
+>2041					ANIMPROC        .word ?             ; Pointer to the animation procedure for this type of sprite
+>2043					STATUS          .byte ?             ; Flags to indicate if an UPDATE or ANIMATE call is needed
+.2044					TORPEDO
+>2044					X               .word ?             ; The x-coordinate of the sprite
+>2046					Y               .word ?             ; The y-coordinate of the sprite
+>2048					DX              .word ?             ; The per-tick change to the x-coordinate
+>204a					DY              .word ?             ; The per-tick change to the y-coordinate
+>204c					WASMOVING       .word ?             ; Indicates if the sprite was moving on the previous loop
+>204e					SPRITEADDR      .word ?             ; Address of the sprite's registers in Vicky
+>2050					BASEADDR        .dword ?            ; The base address (in Vicky space) of the sprite's animation frames (relative to $B0:0000)
+>2054					FRAME           .word ?             ; The index of the frame to display
+>2056					FRAMECOUNT      .word ?             ; The number of frames in the sprite animation
+>2058					FRAMEDELAY      .word ?             ; A counter to time frame flipping
+>205a					DELAYDEFAULT    .word ?             ; The reset value for the frame delay counter
+>205c					MOVEDELAY       .word ?             ; A counter to time movement in X,Y
+>205e					MOVEDELDEF      .word ?             ; The reset value for the movement delay counter
+>2060					ANIMPROC        .word ?             ; Pointer to the animation procedure for this type of sprite
+>2062					STATUS          .byte ?             ; Flags to indicate if an UPDATE or ANIMATE call is needed
+=$002063				END_OF_SPRITES  = *
+.3000	18		clc		START           CLC                 ; Start up in native mode
+.3001	fb		xce		                XCE
+.3002	08		php		            PHP
+.3003	e2 20		sep #$20	            SEP #$20
+.3005	48		pha		            PHA
+.3006	a9 00		lda #$00	            LDA #0
+.3008	48		pha		            PHA
+.3009	ab		plb		            PLB
+.300a	68		pla		            PLA
+.300b	28		plp		            PLP
+.300c	08		php		            PHP
+.300d	c2 20		rep #$20	            REP #$20
+.300f	48		pha		            PHA
+.3010	a9 00 20	lda #$2000	            LDA #SRCPTR
+.3013	5b		tcd		            TCD
+.3014	68		pla		            PLA
+.3015	28		plp		            PLP
+.3016	e2 20		sep #$20	            SEP #$20
+.3018	a9 ff		lda #$ff	                LDA #$FF            ; Set the noise volume to -1 as a sentinel value
+.301a	85 1b		sta $201b	                STA NOISEVOL
+.301c	c2 30		rep #$30	            REP #$30
+.301e	78		sei		                SEI                 ; Turn off interrupts
+.301f	20 bf 30	jsr $30bf	                JSR INITRNG         ; Initialize the random number generator
+.3022	20 e3 33	jsr $33e3	                JSR LOADRSRC        ; Load the resources into video memory
+.3025	20 3d 31	jsr $313d	                JSR INITGRAPH       ; Set up the graphics
+.3028	20 e7 34	jsr $34e7	                JSR INITTONE        ; Initialize the tone player engine
+.302b	20 6e 31	jsr $316e	                JSR INITSTARS       ; Initialize the star field
+.302e	20 a7 31	jsr $31a7	                JSR INITPLAYER      ; Initialize the player sprite
+.3031	20 27 32	jsr $3227	                JSR INITTORPEDO     ; Initialize the torpedo sprite
+.3034	20 49 33	jsr $3349	                JSR UPDATE
+.3037	20 92 34	jsr $3492	                JSR INITIRQ         ; Set up interrupts
+.303a	58		cli		                CLI                 ; Turn interrupts back on
+.303b					main_loop
+.303b	c2 20		rep #$20	            REP #$20
+.303d	cb		wai		                WAI                     ; Wait for interrupt
+.303e	20 e1 30	jsr $30e1	                JSR CHECKJOY            ; Check for inputs
+.3041	e2 20		sep #$20	            SEP #$20
+.3043	a9 80		lda #$80	                LDA #ML_STAT_ANIMATE    ; Check to see if we can animate the sprites
+.3045	14 24		trb $2024	                TRB STATUS
+.3047	f0 f2		beq $303b	                BEQ main_loop           ; No: go back to waiting
+.3049	20 bd 32	jsr $32bd	                JSR ANIMATE             ; Animate all the active sprites
+.304c	80 ed		bra $303b	                BRA main_loop
+.304e					SHIPMOVE
+.304e	08		php		                PHP
+.304f	78		sei		                SEI
+.3050	c2 20		rep #$20	            REP #$20
+.3052	a5 29		lda $2029	                LDA SHIP.DX         ; If DX <> 0 or DY <> 0, the ship is moving
+.3054	d0 27		bne $307d	                BNE is_moving
+.3056	a5 2b		lda $202b	                LDA SHIP.DY
+.3058	d0 23		bne $307d	                BNE is_moving
+.305a	a5 2d		lda $202d	                LDA SHIP.WASMOVING  ; Don't do anything if the ship was already stationary
+.305c	f0 46		beq $30a4	                BEQ done
+.305e	a9 ff 00	lda #$00ff	                LDA #$FF            ; Turn off the engine noise
+.3061	20 a6 30	jsr $30a6	                JSR NOISE
+.3064	a9 00 00	lda #$0000	                LDA #<>VSHIP_STILL  ; Sprite should be of a stationary ship
+.3067	85 31		sta $2031	                STA SHIP.BASEADDR
+.3069	38		sec		                SEC
+.306a	a9 b0 00	lda #$00b0	                LDA #`VSHIP_STILL
+.306d	e9 b0 00	sbc #$00b0	                SBC #$B0
+.3070	85 33		sta $2033	                STA SHIP.BASEADDR+2
+.3072	a9 01 00	lda #$0001	                LDA #1              ; There is only the one frame
+.3075	85 37		sta $2037	                STA SHIP.FRAMECOUNT
+.3077	64 35		stz $2035	                STZ SHIP.FRAME
+.3079	64 2d		stz $202d	                STZ SHIP.WASMOVING  ; Set that the ship is no longer moving
+.307b	80 27		bra $30a4	                BRA done
+.307d	a5 2d		lda $202d	is_moving       LDA SHIP.WASMOVING  ; Don't update if ship was already moving
+.307f	c9 01 00	cmp #$0001	                CMP #1
+.3082	f0 20		beq $30a4	                BEQ done
+.3084	a9 07 00	lda #$0007	                LDA #7              ; Turn on the engine noise
+.3087	20 a6 30	jsr $30a6	                JSR NOISE
+.308a	a9 00 04	lda #$0400	                LDA #<>VSHIP_UP     ; Sprite should be of a flying ship
+.308d	85 31		sta $2031	                STA SHIP.BASEADDR
+.308f	38		sec		                SEC
+.3090	a9 b0 00	lda #$00b0	                LDA #`VSHIP_UP
+.3093	e9 b0 00	sbc #$00b0	                SBC #$B0
+.3096	85 33		sta $2033	                STA SHIP.BASEADDR+2
+.3098	a9 05 00	lda #$0005	                LDA #5              ; There are five frames in this animation
+.309b	85 37		sta $2037	                STA SHIP.FRAMECOUNT
+.309d	64 35		stz $2035	                STZ SHIP.FRAME
+.309f	a9 01 00	lda #$0001	                LDA #1              ; Set that the ship is now moving
+.30a2	85 2d		sta $202d	                STA SHIP.WASMOVING
+.30a4	28		plp		done            PLP
+.30a5	60		rts		                RTS
+.30a6					NOISE
+.30a6	08		php		                PHP
+.30a7	e2 20		sep #$20	            SEP #$20
+.30a9	29 0f		and #$0f	                AND #$0F            ; Check the attenuation
+.30ab	c5 1b		cmp $201b	                CMP NOISEVOL        ; Is it already set?
+.30ad	f0 0e		beq $30bd	                BEQ done            ; Yes: don't change anything
+.30af	85 1b		sta $201b	                STA NOISEVOL        ; Otherwise, record this volume level
+.30b1	09 f0		ora #$f0	                ORA #$F0            ; Make A an attenuation value for the noise channel
+.30b3	8f 00 f1 af	sta $aff100	                STA @l SN76489
+.30b7	a9 e6		lda #$e6	                LDA #%11100110      ; Make the noise
+.30b9	8f 00 f1 af	sta $aff100	                STA @l SN76489
+.30bd	28		plp		done            PLP
+.30be	60		rts		                RTS
+.30bf					INITRNG
+.30bf	08		php		                PHP
+.30c0	e2 20		sep #$20	            SEP #$20
+.30c2	af 00 08 af	lda $af0800	                LDA @l RTC_SEC              ; Get the seconds and minutes to use as a seed
+.30c6	eb		xba		                XBA
+.30c7	af 02 08 af	lda $af0802	                LDA @l RTC_MIN
+.30cb	c2 20		rep #$20	            REP #$20
+.30cd	8f 84 e8 af	sta $afe884	                STA @l GABE_RNG_DAT_LO      ; Set the seed
+.30d1	e2 20		sep #$20	            SEP #$20
+.30d3	a9 03		lda #$03	                LDA #GABE_RNG_CTRL_EN | GABE_RNG_CTRL_DV
+.30d5	8f 86 e8 af	sta $afe886	                STA @l GABE_RNG_CTRL
+.30d9	a9 01		lda #$01	                LDA #GABE_RNG_CTRL_EN
+.30db	8f 86 e8 af	sta $afe886	                STA @l GABE_RNG_CTRL
+.30df	28		plp		                PLP
+.30e0	60		rts		                RTS
+.30e1					CHECKJOY
+.30e1	08		php		                PHP
+.30e2	78		sei		                SEI
+.30e3	c2 20		rep #$20	            REP #$20
+.30e5	64 29		stz $2029	                STZ SHIP.DX
+.30e7	64 2b		stz $202b	                STZ SHIP.DY
+.30e9	e2 20		sep #$20	            SEP #$20
+.30eb	af 00 e8 af	lda $afe800	                LDA @l JOYSTICK0    ; Get the first joystick
+.30ef	c2 20		rep #$20	            REP #$20
+.30f1	29 ff 00	and #$00ff	                AND #$00FF
+.30f4	85 15		sta $2015	                STA JOY0
+.30f6	89 10 00	bit #$0010	                BIT #%00010000      ; Has the button been pushed?
+.30f9	d0 03		bne $30fe	                BNE check_move      ; No: check the movement buttons
+.30fb	20 71 32	jsr $3271	                JSR FIRE            ; Yes: fire the torpedo
+.30fe	89 08 00	bit #$0008	check_move      BIT #%00001000
+.3101	f0 11		beq $3114	                BEQ right
+.3103	89 04 00	bit #$0004	                BIT #%00000100
+.3106	d0 12		bne $311a	                BNE check_ud
+.3108					left
+.3108	c2 20		rep #$20	            REP #$20
+.310a	a5 0e		lda $200e	                LDA SHIPSPEED
+.310c	49 ff ff	eor #$ffff	                EOR #$FFFF
+.310f	1a		inc a		                INC A
+.3110	85 29		sta $2029	                STA SHIP.DX
+.3112	80 06		bra $311a	                BRA check_ud
+.3114					right
+.3114	c2 20		rep #$20	            REP #$20
+.3116	a5 0e		lda $200e	                LDA SHIPSPEED
+.3118	85 29		sta $2029	                STA SHIP.DX
+.311a	a5 15		lda $2015	check_ud        LDA JOY0
+.311c	89 02 00	bit #$0002	                BIT #%00000010
+.311f	f0 11		beq $3132	                BEQ down
+.3121	89 01 00	bit #$0001	                BIT #%00000001
+.3124	d0 12		bne $3138	                BNE set_move
+.3126					up
+.3126	c2 20		rep #$20	            REP #$20
+.3128	a5 0e		lda $200e	                LDA SHIPSPEED
+.312a	49 ff ff	eor #$ffff	                EOR #$FFFF
+.312d	1a		inc a		                INC A
+.312e	85 2b		sta $202b	                STA SHIP.DY
+.3130	80 06		bra $3138	                BRA set_move
+.3132					down
+.3132	c2 20		rep #$20	            REP #$20
+.3134	a5 0e		lda $200e	                LDA SHIPSPEED
+.3136	85 2b		sta $202b	                STA SHIP.DY
+.3138	20 4e 30	jsr $304e	set_move        JSR SHIPMOVE        ; Set whether or not the ship is moving
+.313b	28		plp		done            PLP
+.313c	60		rts		                RTS
+.313d	08		php		INITGRAPH       PHP
+.313e	e2 20		sep #$20	            SEP #$20
+.3140	a9 34		lda #$34	                LDA #Mstr_Ctrl_Graph_Mode_En | Mstr_Ctrl_Sprite_En | Mstr_Ctrl_TileMap_En ;| Mstr_Ctrl_Text_Overlay | Mstr_Ctrl_Text_Mode_En
+.3142	8f 00 00 af	sta $af0000	                STA @l MASTER_CTRL_REG_L
+.3146	a9 01		lda #$01	                LDA #%00000001                  ; Enable and use LUT0
+.3148	8f 00 02 af	sta $af0200	                STA @l SP00_CONTROL_REG         ; With sprite #0
+.314c	a9 00		lda #$00	                LDA #0                          ; Turn off the border
+.314e	8f 04 00 af	sta $af0004	                STA @l BORDER_CTRL_REG
+.3152	8f 08 00 af	sta $af0008	                STA @l BORDER_X_SIZE            ; And set its size to 0
+.3156	8f 09 00 af	sta $af0009	                STA @l BORDER_Y_SIZE
+.315a	a9 00		lda #$00	                LDA #0
+.315c	8f 00 07 af	sta $af0700	                STA @l MOUSE_PTR_CTRL_REG_L     ; Turn off the mouse pointer
+.3160	c2 20		rep #$20	            REP #$20
+.3162	a9 60 02	lda #$0260	                LDA #640-32                     ; Set the right most position of a sprite
+.3165	85 17		sta $2017	                STA BOUNDARY_R
+.3167	a9 c0 01	lda #$01c0	                LDA #480-32                     ; Set the right most position of a sprite
+.316a	85 19		sta $2019	                STA BOUNDARY_B
+.316c	28		plp		                PLP
+.316d	60		rts		                RTS
+.316e					INITSTARS
+.316e	08		php		                PHP
+.316f	c2 20		rep #$20	            REP #$20
+.3171	a9 00 38	lda #$3800	                LDA #<>VSTARS
+.3174	8f 01 01 af	sta $af0101	                STA @l TL0_START_ADDY_L
+.3178	e2 20		sep #$20	            SEP #$20
+.317a	a9 00		lda #$00	                LDA #(`VSTARS) - $B0
+.317c	8f 03 01 af	sta $af0103	                STA @l TL0_START_ADDY_H
+.3180	a9 83		lda #$83	                LDA #%10000011                              ; Display the tiles and expect a 256x256 tile sheet
+.3182	8f 00 01 af	sta $af0100	                STA @l TL0_CONTROL_REG
+.3186	a2 00 00	ldx #$0000	                LDX #0
+.3189	af 84 e8 af	lda $afe884	loop            LDA @l GABE_RNG_SEED_LO                     ; Get a random number
+.318d	29 0f		and #$0f	                AND #$0F                                    ; Restrict it to 0 - 7
+.318f	d0 12		bne $31a3	                BNE set_clear
+.3191	af 84 e8 af	lda $afe884	                LDA @l GABE_RNG_SEED_LO                     ; Get a random number
+.3195	29 0f		and #$0f	                AND #$0F
+.3197	9f 00 50 af	sta $af5000,x	set_tile        STA @l TILE_MAP0,X                          ; Save it to the tile map
+.319b	e8		inx		                INX                                         ; Move to the next tile
+.319c	e0 00 08	cpx #$0800	                CPX #$0800                                  ; Until we've done the last tile
+.319f	d0 e8		bne $3189	                BNE loop
+.31a1	28		plp		                PLP
+.31a2	60		rts		                RTS
+.31a3	a9 00		lda #$00	set_clear       LDA #0                                      ; Most of tiles will be clear
+.31a5	80 f0		bra $3197	                BRA set_tile
+.31a7					INITPLAYER
+.31a7	08		php		                PHP
+.31a8	c2 20		rep #$20	            REP #$20
+.31aa	a9 00 02	lda #$0200	                LDA #<>SP00_CONTROL_REG     ; Set the address of the sprite registers
+.31ad	85 2f		sta $202f	                STA SHIP.SPRITEADDR
+.31af	a9 06 00	lda #$0006	                LDA #6                      ; Set the frame delay count
+.31b2	85 3b		sta $203b	                STA SHIP.DELAYDEFAULT
+.31b4	a9 01 00	lda #$0001	                LDA #1                      ; Set the movement delay count
+.31b7	85 3f		sta $203f	                STA SHIP.MOVEDELDEF
+.31b9	a9 02 00	lda #$0002	                LDA #2                      ; Set the default speed of the ship
+.31bc	85 0e		sta $200e	                STA SHIPSPEED
+.31be	a9 30 01	lda #$0130	                LDA #320 - 16               ; Put the sprite in the middle of the screen
+.31c1	85 25		sta $2025	                STA SHIP.X
+.31c3	a9 e0 00	lda #$00e0	                LDA #240 - 16
+.31c6	85 27		sta $2027	                STA SHIP.Y
+.31c8	64 29		stz $2029	                STZ SHIP.DX                 ; Stationary
+.31ca	64 2b		stz $202b	                STZ SHIP.DY
+.31cc	20 4e 30	jsr $304e	                JSR SHIPMOVE                ; Set the sound and graphics for a non-moving ship
+.31cf	64 35		stz $2035	                STZ SHIP.FRAME              ; Initial frame
+.31d1	a9 01 00	lda #$0001	                LDA #1
+.31d4	85 37		sta $2037	                STA SHIP.FRAMECOUNT         ; 0 frames in the animation
+.31d6	a5 3b		lda $203b	                LDA SHIP.DELAYDEFAULT
+.31d8	85 39		sta $2039	                STA SHIP.FRAMEDELAY         ; Set the frame delay counter
+.31da	a5 3f		lda $203f	                LDA SHIP.MOVEDELDEF         ; Set the movement delay counter
+.31dc	85 3d		sta $203d	                STA SHIP.MOVEDELAY
+.31de	a9 ff ff	lda #$ffff	                LDA #$FFFF
+.31e1	85 2d		sta $202d	                STA SHIP.WASMOVING          ; Set ship was moving flag to sentinel value
+.31e3	a9 f0 31	lda #$31f0	                LDA #<>ANIMPLAYER           ; Set the animation procedure for the sprite
+.31e6	85 41		sta $2041	                STA SHIP.ANIMPROC
+.31e8	e2 20		sep #$20	            SEP #$20
+.31ea	a9 e0		lda #$e0	                LDA #SP_STAT_ACTIVE | SP_STAT_UPDATE
+.31ec	85 43		sta $2043	                STA SHIP.STATUS             ; Flag the ship as active and ready for an update
+.31ee	28		plp		                PLP
+.31ef	60		rts		                RTS
+.31f0					ANIMPLAYER
+.31f0	08		php		                PHP
+.31f1	08		php		            PHP
+.31f2	e2 20		sep #$20	            SEP #$20
+.31f4	48		pha		            PHA
+.31f5	a9 00		lda #$00	            LDA #0
+.31f7	48		pha		            PHA
+.31f8	ab		plb		            PLB
+.31f9	68		pla		            PLA
+.31fa	28		plp		            PLP
+.31fb	08		php		            PHP
+.31fc	c2 20		rep #$20	            REP #$20
+.31fe	48		pha		            PHA
+.31ff	a9 00 20	lda #$2000	            LDA #SRCPTR
+.3202	5b		tcd		            TCD
+.3203	68		pla		            PLA
+.3204	28		plp		            PLP
+.3205	a5 25		lda $2025	                LDA SHIP.X
+.3207	10 04		bpl $320d	                BPL check_right             ; X >= 0?
+.3209	64 25		stz $2025	                STZ SHIP.X                  ; No: Lock it to 0
+.320b	80 08		bra $3215	                BRA check_top
+.320d	c5 17		cmp $2017	check_right     CMP BOUNDARY_R              ; X >= the right most position?
+.320f	90 04		bcc $3215	                BLT check_top               ; No: we're good
+.3211	a5 17		lda $2017	                LDA BOUNDARY_R              ; Yes: lock it to the right most position
+.3213	85 25		sta $2025	                STA SHIP.X
+.3215	a5 27		lda $2027	check_top       LDA SHIP.Y
+.3217	10 04		bpl $321d	                BPL check_bottom            ; Y >= 0?
+.3219	64 27		stz $2027	                STZ SHIP.Y                  ; No: Lock it to 0
+.321b	80 f8		bra $3215	                BRA check_top
+.321d	c5 19		cmp $2019	check_bottom    CMP BOUNDARY_B              ; X >= the right most position?
+.321f	90 04		bcc $3225	                BLT done                    ; No: we're good
+.3221	a5 19		lda $2019	                LDA BOUNDARY_B              ; Yes: lock it to the right most position
+.3223	85 27		sta $2027	                STA SHIP.Y
+.3225	28		plp		done            PLP
+.3226	60		rts		                RTS
+.3227					INITTORPEDO
+.3227	08		php		                PHP
+.3228	c2 20		rep #$20	            REP #$20
+.322a	a9 08 02	lda #$0208	                LDA #<>SP01_CONTROL_REG     ; Set the address of the sprite registers
+.322d	85 4e		sta $204e	                STA TORPEDO.SPRITEADDR
+.322f	a9 06 00	lda #$0006	                LDA #6                      ; Set the frame delay count
+.3232	85 5a		sta $205a	                STA TORPEDO.DELAYDEFAULT
+.3234	a9 01 00	lda #$0001	                LDA #1                      ; Set the movement delay count
+.3237	85 5e		sta $205e	                STA TORPEDO.MOVEDELDEF
+.3239	a9 30 01	lda #$0130	                LDA #320 - 16               ; Put the sprite in the middle of the screen
+.323c	85 44		sta $2044	                STA TORPEDO.X               ; This should be set on FIRE
+.323e	a9 e0 00	lda #$00e0	                LDA #240 - 16
+.3241	85 46		sta $2046	                STA TORPEDO.Y
+.3243	64 48		stz $2048	                STZ TORPEDO.DX              ; Stationary
+.3245	a9 fc ff	lda #$fffc	                LDA #$FFFC                  ; -4 in the Y direction
+.3248	85 4a		sta $204a	                STA TORPEDO.DY
+.324a	a9 ff ff	lda #$ffff	                LDA #$FFFF                  ; Set initial frame to -1 to keep it inactive until FIRE
+.324d	85 54		sta $2054	                STA TORPEDO.FRAME
+.324f	a9 08 00	lda #$0008	                LDA #8
+.3252	85 56		sta $2056	                STA TORPEDO.FRAMECOUNT      ; 0 frames in the animation
+.3254	a5 5a		lda $205a	                LDA TORPEDO.DELAYDEFAULT
+.3256	85 58		sta $2058	                STA TORPEDO.FRAMEDELAY      ; Set the frame delay counter
+.3258	a9 00 18	lda #$1800	                LDA #<>VTORPEDO             ; Sprite should be of a torpedo
+.325b	85 50		sta $2050	                STA TORPEDO.BASEADDR
+.325d	38		sec		                SEC
+.325e	a9 b0 00	lda #$00b0	                LDA #`VTORPEDO
+.3261	e9 b0 00	sbc #$00b0	                SBC #$B0
+.3264	85 52		sta $2052	                STA TORPEDO.BASEADDR+2
+.3266	a5 5e		lda $205e	                LDA TORPEDO.MOVEDELDEF      ; Set the movement delay counter
+.3268	85 5c		sta $205c	                STA TORPEDO.MOVEDELAY
+.326a	a9 a3 32	lda #$32a3	                LDA #<>ANIMTORPEDO           ; Set the animation procedure for the sprite
+.326d	85 60		sta $2060	                STA TORPEDO.ANIMPROC
+.326f	28		plp		                PLP
+.3270	60		rts		                RTS
+.3271					FIRE
+.3271	48		pha		                PHA
+.3272	08		php		                PHP
+.3273	c2 20		rep #$20	            REP #$20
+.3275	a5 54		lda $2054	                LDA TORPEDO.FRAME           ; Is the torpedo already on the screen?
+.3277	10 27		bpl $32a0	                BPL done                    ; Yes: we don't fire again
+.3279	a5 25		lda $2025	                LDA SHIP.X                  ; Set the torpedo position to be the same as the ship
+.327b	85 44		sta $2044	                STA TORPEDO.X
+.327d	a5 27		lda $2027	                LDA SHIP.Y
+.327f	85 46		sta $2046	                STA TORPEDO.Y
+.3281	a9 00 00	lda #$0000	                LDA #0                      ; Set the starting frame
+.3284	85 54		sta $2054	                STA TORPEDO.FRAME
+.3286	e2 20		sep #$20	            SEP #$20
+.3288	a9 e0		lda #$e0	                LDA #SP_STAT_ACTIVE | SP_STAT_UPDATE
+.328a	85 62		sta $2062	                STA TORPEDO.STATUS          ; Make the torpedo sprite active and ready for update
+.328c	a9 01		lda #$01	                LDA #$01
+.328e	8f 08 02 af	sta $af0208	                STA @l SP01_CONTROL_REG
+.3292	c2 20		rep #$20	            REP #$20
+.3294	a9 ac 18	lda #$18ac	                LDA #<>TONE_PEW             ; Queue playing the PEW sound
+.3297	85 65		sta $2065	                STA TONEPTR
+.3299	a9 11 00	lda #$0011	                LDA #`TONE_PEW
+.329c	85 67		sta $2067	                STA TONEPTR+2
+.329e	64 63		stz $2063	                STZ TONECOUNT
+.32a0	28		plp		done            PLP
+.32a1	68		pla		                PLA
+.32a2	60		rts		                RTS
+.32a3					ANIMTORPEDO
+.32a3	08		php		                PHP
+.32a4	a5 46		lda $2046	                LDA TORPEDO.Y               ; Check the height
+.32a6	30 02		bmi $32aa	                BMI cancel                  ; If above the first line, cancel it
+.32a8	d0 11		bne $32bb	                BNE done                    ; If not at the top, we're done
+.32aa	a9 ff ff	lda #$ffff	cancel          LDA #$FFFF                  ; If at top, stop processing the torpedo
+.32ad	85 54		sta $2054	                STA TORPEDO.FRAME
+.32af	e2 20		sep #$20	            SEP #$20
+.32b1	a9 00		lda #$00	                LDA #0
+.32b3	8f 08 02 af	sta $af0208	                STA @l SP01_CONTROL_REG
+.32b7	a9 00		lda #$00	                LDA #0
+.32b9	85 62		sta $2062	                STA TORPEDO.STATUS          ; Deactivate the torpedo sprite
+.32bb	28		plp		done            PLP
+.32bc	60		rts		                RTS
+.32bd					ANIMATE
+.32bd	08		php		                PHP
+.32be	c2 30		rep #$30	            REP #$30
+.32c0	a2 25 20	ldx #$2025	                LDX #<>START_OF_SPRITES
+.32c3	20 d6 32	jsr $32d6	loop            JSR ANIMSPRITE
+.32c6	8a		txa		                TXA
+.32c7	18		clc		                CLC
+.32c8	69 1f 00	adc #$001f	                ADC #size(SPRITE)
+.32cb	aa		tax		                TAX
+.32cc	e0 63 20	cpx #$2063	                CPX #<>END_OF_SPRITES
+.32cf	d0 f2		bne $32c3	                BNE loop
+.32d1	28		plp		done            PLP
+.32d2	60		rts		                RTS
+.32d3	6c 13 20	jmp ($2013)	DISPATCH        JMP (INDPROC)
+.32d6					ANIMSPRITE
+.32d6	08		php		                PHP
+.32d7	08		php		            PHP
+.32d8	e2 20		sep #$20	            SEP #$20
+.32da	48		pha		            PHA
+.32db	a9 00		lda #$00	            LDA #0
+.32dd	48		pha		            PHA
+.32de	ab		plb		            PLB
+.32df	68		pla		            PLA
+.32e0	28		plp		            PLP
+.32e1	08		php		            PHP
+.32e2	c2 20		rep #$20	            REP #$20
+.32e4	48		pha		            PHA
+.32e5	a9 00 20	lda #$2000	            LDA #SRCPTR
+.32e8	5b		tcd		            TCD
+.32e9	68		pla		            PLA
+.32ea	28		plp		            PLP
+.32eb	e2 20		sep #$20	            SEP #$20
+.32ed	bd 1e 00	lda $001e,x	                LDA SPRITE.STATUS,X         ; Check if the sprite is active
+.32f0	10 4a		bpl $333c	                BPL done                    ; NO: there is no need to animate
+.32f2	c2 30		rep #$30	            REP #$30
+.32f4	bd 1c 00	lda $001c,x	                LDA SPRITE.ANIMPROC,X       ; Get the address of this sprite's animation routine
+.32f7	f0 05		beq $32fe	                BEQ do_frame                ; If it's NULL, just do the default stuff
+.32f9	85 13		sta $2013	                STA INDPROC                 ; Save it to the dispatch pointer
+.32fb	20 d3 32	jsr $32d3	                JSR DISPATCH                ; And call it
+.32fe	bd 10 00	lda $0010,x	do_frame        LDA SPRITE.FRAME,X          ; Get the current frame number
+.3301	30 39		bmi $333c	                BMI done                    ; If it's negative, the sprite is inactive
+.3303	de 14 00	dec $0014,x	                DEC SPRITE.FRAMEDELAY,X     ; Decrement the frame delay counter
+.3306	d0 15		bne $331d	                BNE frame_done              ; If it's not zero, we don't change the frame
+.3308	bd 16 00	lda $0016,x	                LDA SPRITE.DELAYDEFAULT,X   ; Reset the frame delay counter
+.330b	9d 14 00	sta $0014,x	                STA SPRITE.FRAMEDELAY,X
+.330e	bd 10 00	lda $0010,x	                LDA SPRITE.FRAME,X          ; Get the current frame number
+.3311	1a		inc a		                INC A                       ; Go to the next frame
+.3312	dd 12 00	cmp $0012,x	                CMP SPRITE.FRAMECOUNT,X     ; Check to see if we've reached the limit
+.3315	d0 03		bne $331a	                BNE set_frame
+.3317	a9 00 00	lda #$0000	                LDA #0                      ; Yes: return to frame 0
+.331a	9d 10 00	sta $0010,x	set_frame       STA SPRITE.FRAME,X          ; Set the frame
+.331d					frame_done
+.331d	de 18 00	dec $0018,x	                DEC SPRITE.MOVEDELAY,X      ; Decrement the movement delay counter
+.3320	d0 1a		bne $333c	                BNE done                    ; If it's not zero, we don't move the sprite
+.3322	bd 1a 00	lda $001a,x	                LDA SPRITE.MOVEDELDEF,X     ; Reset the movement delay counter
+.3325	9d 18 00	sta $0018,x	                STA SPRITE.MOVEDELAY,X
+.3328	18		clc		                CLC                         ; X := X + DX
+.3329	bd 04 00	lda $0004,x	                LDA SPRITE.DX,X
+.332c	7d 00 00	adc $0000,x	                ADC SPRITE.X,X
+.332f	9d 00 00	sta $0000,x	                STA SPRITE.X,X
+.3332	18		clc		update_y        CLC                         ; Y := Y + DY
+.3333	bd 06 00	lda $0006,x	                LDA SPRITE.DY,X
+.3336	7d 02 00	adc $0002,x	                ADC SPRITE.Y,X
+.3339	9d 02 00	sta $0002,x	                STA SPRITE.Y,X
+.333c	78		sei		done            SEI                         ; Flag that the sprite needs to be updated in Vicky
+.333d	e2 20		sep #$20	            SEP #$20
+.333f	a9 60		lda #$60	                LDA #SP_STAT_UPDATE
+.3341	1d 1e 00	ora $001e,x	                ORA SPRITE.STATUS,X
+.3344	9d 1e 00	sta $001e,x	                STA SPRITE.STATUS,X
+.3347	28		plp		                PLP
+.3348	60		rts		                RTS
+.3349					UPDATE
+.3349	08		php		                PHP
+.334a	c2 30		rep #$30	            REP #$30
+.334c	a2 25 20	ldx #$2025	                LDX #<>START_OF_SPRITES
+.334f	20 5f 33	jsr $335f	loop            JSR UPDATESPRITE
+.3352	8a		txa		                TXA
+.3353	18		clc		                CLC
+.3354	69 1f 00	adc #$001f	                ADC #size(SPRITE)
+.3357	aa		tax		                TAX
+.3358	e0 63 20	cpx #$2063	                CPX #<>END_OF_SPRITES
+.335b	d0 f2		bne $334f	                BNE loop
+.335d	28		plp		done            PLP
+.335e	60		rts		                RTS
+.335f					UPDATESPRITE
+.335f	08		php		                PHP
+.3360	08		php		            PHP
+.3361	e2 20		sep #$20	            SEP #$20
+.3363	48		pha		            PHA
+.3364	a9 00		lda #$00	            LDA #0
+.3366	48		pha		            PHA
+.3367	ab		plb		            PLB
+.3368	68		pla		            PLA
+.3369	28		plp		            PLP
+.336a	08		php		            PHP
+.336b	c2 20		rep #$20	            REP #$20
+.336d	48		pha		            PHA
+.336e	a9 00 20	lda #$2000	            LDA #SRCPTR
+.3371	5b		tcd		            TCD
+.3372	68		pla		            PLA
+.3373	28		plp		            PLP
+.3374	c2 30		rep #$30	            REP #$30
+.3376	bd 10 00	lda $0010,x	                LDA SPRITE.FRAME,X          ; Get the current frame number
+.3379	30 66		bmi $33e1	                BMI done                    ; If it's negative, the sprite is inactive
+.337b	bd 0a 00	lda $000a,x	                LDA SPRITE.SPRITEADDR,X     ; TMPPTR := pointer to the sprite's registers in Vicky
+.337e	85 20		sta $2020	                STA REGPTR
+.3380	a9 af 00	lda #$00af	                LDA #`SP00_CONTROL_REG
+.3383	85 22		sta $2022	                STA REGPTR+2
+.3385	64 0a		stz $200a	                STZ TEMP
+.3387	64 0c		stz $200c	                STZ TEMP+2
+.3389	bd 00 00	lda $0000,x	                LDA SPRITE.X,X          ; Set the X position of the sprite
+.338c	a0 04 00	ldy #$0004	                LDY #SP_OFF_X
+.338f	97 20		sta [$2020],y	                STA [REGPTR],Y
+.3391	bd 02 00	lda $0002,x	                LDA SPRITE.Y,X          ; Set the Y position of the sprite
+.3394	a0 06 00	ldy #$0006	                LDY #SP_OFF_Y
+.3397	97 20		sta [$2020],y	                STA [REGPTR],Y
+.3399	bd 10 00	lda $0010,x	                LDA SPRITE.FRAME,X      ; Get the animation frame's offset into TEMP
+.339c	85 0a		sta $200a	                STA TEMP
+.339e	06 0a		asl $200a	                ASL TEMP
+.33a0	26 0c		rol $200c	                ROL TEMP+2
+.33a2	06 0a		asl $200a	                ASL TEMP
+.33a4	26 0c		rol $200c	                ROL TEMP+2
+.33a6	06 0a		asl $200a	                ASL TEMP
+.33a8	26 0c		rol $200c	                ROL TEMP+2
+.33aa	06 0a		asl $200a	                ASL TEMP
+.33ac	26 0c		rol $200c	                ROL TEMP+2
+.33ae	06 0a		asl $200a	                ASL TEMP
+.33b0	26 0c		rol $200c	                ROL TEMP+2
+.33b2	06 0a		asl $200a	                ASL TEMP
+.33b4	26 0c		rol $200c	                ROL TEMP+2
+.33b6	06 0a		asl $200a	                ASL TEMP
+.33b8	26 0c		rol $200c	                ROL TEMP+2
+.33ba	06 0a		asl $200a	                ASL TEMP
+.33bc	26 0c		rol $200c	                ROL TEMP+2
+.33be	06 0a		asl $200a	                ASL TEMP
+.33c0	26 0c		rol $200c	                ROL TEMP+2
+.33c2	06 0a		asl $200a	                ASL TEMP
+.33c4	26 0c		rol $200c	                ROL TEMP+2
+.33c6	18		clc		                CLC
+.33c7	bd 0c 00	lda $000c,x	                LDA SPRITE.BASEADDR,X   ; Add the base address of the animation frames
+.33ca	65 0a		adc $200a	                ADC TEMP
+.33cc	a0 01 00	ldy #$0001	                LDY #SP_OFF_ADDR
+.33cf	97 20		sta [$2020],y	                STA [REGPTR],Y
+.33d1	85 0a		sta $200a	                STA TEMP
+.33d3	e2 20		sep #$20	            SEP #$20
+.33d5	bd 0e 00	lda $000e,x	                LDA SPRITE.BASEADDR+2,X
+.33d8	65 0c		adc $200c	                ADC TEMP+2
+.33da	85 0c		sta $200c	                STA TEMP+2
+.33dc	a0 03 00	ldy #$0003	                LDY #SP_OFF_ADDR+2
+.33df	97 20		sta [$2020],y	                STA [REGPTR],Y          ; And set the address of the sprite pixmap
+.33e1	28		plp		done            PLP
+.33e2	60		rts		                RTS
+.33e3					LOADRSRC
+.33e3	08		php		                PHP
+.33e4	c2 30		rep #$30	            REP #$30
+.33e6	a9 00 00	lda #$0000	                LDA #<>SHIP_STATIONARY  ; Set source address to RLE data of the ship pointing up
+.33e9	85 00		sta $2000	                STA SRCPTR
+.33eb	a9 11 00	lda #$0011	                LDA #`SHIP_STATIONARY
+.33ee	85 02		sta $2002	                STA SRCPTR+2
+.33f0	a9 00 00	lda #$0000	                LDA #<>VSHIP_STILL      ; Set the destination address to the location in VRAM where the sprite should be
+.33f3	85 04		sta $2004	                STA DSTPTR
+.33f5	a9 b0 00	lda #$00b0	                LDA #`VSHIP_STILL
+.33f8	85 06		sta $2006	                STA DSTPTR+2
+.33fa	20 50 34	jsr $3450	                JSR EXPANDRLE           ; And expand the RLE data into VRAM
+.33fd	a9 70 02	lda #$0270	                LDA #<>SHIP_UP          ; Set source address to RLE data of the ship pointing up
+.3400	85 00		sta $2000	                STA SRCPTR
+.3402	a9 11 00	lda #$0011	                LDA #`SHIP_UP
+.3405	85 02		sta $2002	                STA SRCPTR+2
+.3407	a9 00 04	lda #$0400	                LDA #<>VSHIP_UP         ; Set the destination address to the location in VRAM where the sprite should be
+.340a	85 04		sta $2004	                STA DSTPTR
+.340c	a9 b0 00	lda #$00b0	                LDA #`VSHIP_UP
+.340f	85 06		sta $2006	                STA DSTPTR+2
+.3411	20 50 34	jsr $3450	                JSR EXPANDRLE           ; And expand the RLE data into VRAM
+.3414	a9 a6 14	lda #$14a6	                LDA #<>TORPEDO_START    ; Set source address to RLE data of the torpedo
+.3417	85 00		sta $2000	                STA SRCPTR
+.3419	a9 11 00	lda #$0011	                LDA #`TORPEDO_START
+.341c	85 02		sta $2002	                STA SRCPTR+2
+.341e	a9 00 18	lda #$1800	                LDA #<>VTORPEDO         ; Set the destination address to the location in VRAM where the sprite should be
+.3421	85 04		sta $2004	                STA DSTPTR
+.3423	a9 b0 00	lda #$00b0	                LDA #`VTORPEDO
+.3426	85 06		sta $2006	                STA DSTPTR+2
+.3428	20 50 34	jsr $3450	                JSR EXPANDRLE           ; And expand the RLE data into VRAM
+.342b	a9 46 0f	lda #$0f46	                LDA #<>STARS_START      ; Set source address to RLE data of the star field
+.342e	85 00		sta $2000	                STA SRCPTR
+.3430	a9 11 00	lda #$0011	                LDA #`STARS_START
+.3433	85 02		sta $2002	                STA SRCPTR+2
+.3435	a9 00 38	lda #$3800	                LDA #<>VSTARS           ; Set the destination address to the location in VRAM where the star field should be
+.3438	85 04		sta $2004	                STA DSTPTR
+.343a	a9 b0 00	lda #$00b0	                LDA #`VSTARS
+.343d	85 06		sta $2006	                STA DSTPTR+2
+.343f	20 50 34	jsr $3450	                JSR EXPANDRLE           ; And expand the RLE data into VRAM
+.3442	a2 a1 36	ldx #$36a1	                LDX #<>LUT_START        ; Copy the color pallette to Vicky
+.3445	a0 00 24	ldy #$2400	                LDY #<>GRPH_LUT1_PTR
+.3448	a9 00 04	lda #$0400	                LDA #256 * 4
+.344b	54 af 00	mvn $00,$af	                MVN `LUT_START,`GRPH_LUT1_PTR
+.344e	28		plp		                PLP
+.344f	60		rts		                RTS
+.3450					EXPANDRLE
+.3450	08		php		                PHP
+.3451	e2 20		sep #$20	            SEP #$20
+.3453	64 08		stz $2008	                STZ COUNT           ; Make sure COUNT is in a known good state
+.3455	64 09		stz $2009	                STZ COUNT+1
+.3457	a0 00 00	ldy #$0000	pair_loop       LDY #0
+.345a	b7 00		lda [$2000],y	                LDA [SRCPTR],Y      ; Get the count of bytes to transfer
+.345c	f0 32		beq $3490	                BEQ done            ; If it's zero, we're done
+.345e	85 08		sta $2008	                STA COUNT           ; And save it to the count variable
+.3460	c8		iny		                INY
+.3461	b7 00		lda [$2000],y	                LDA [SRCPTR],Y      ; Get the byte to copy over
+.3463	a0 00 00	ldy #$0000	                LDY #0
+.3466	97 04		sta [$2004],y	write_loop      STA [DSTPTR],Y      ; And write it to the destination
+.3468	c8		iny		                INY
+.3469	c4 08		cpy $2008	                CPY COUNT           ; Have we reached the end?
+.346b	d0 f9		bne $3466	                BNE write_loop      ; No: keep writing it
+.346d	c2 20		rep #$20	            REP #$20
+.346f	18		clc		                CLC                 ; Advance the destination pointer
+.3470	a5 04		lda $2004	                LDA DSTPTR
+.3472	65 08		adc $2008	                ADC COUNT
+.3474	85 04		sta $2004	                STA DSTPTR
+.3476	a5 06		lda $2006	                LDA DSTPTR+2
+.3478	69 00 00	adc #$0000	                ADC #0
+.347b	85 06		sta $2006	                STA DSTPTR+2
+.347d	18		clc		                CLC                 ; Advance the srouce pointer to the next pair
+.347e	a5 00		lda $2000	                LDA SRCPTR
+.3480	69 02 00	adc #$0002	                ADC #2
+.3483	85 00		sta $2000	                STA SRCPTR
+.3485	a5 02		lda $2002	                LDA SRCPTR+2
+.3487	69 00 00	adc #$0000	                ADC #0
+.348a	85 02		sta $2002	                STA SRCPTR+2
+.348c	e2 20		sep #$20	            SEP #$20
+.348e	80 c7		bra $3457	                BRA pair_loop       ; And check it
+.3490	28		plp		done            PLP
+.3491	60		rts		                RTS
+
+;******  Processing file: src\interrupts.s
+
+.3492					INITIRQ
+.3492	08		php		                PHP
+.3493	c2 20		rep #$20	            REP #$20
+.3495	ad ee ff	lda $ffee	                LDA HIRQ                    ; Save the old interrupt handler
+.3498	85 11		sta $2011	                STA OLDIRQ
+.349a	a9 b2 34	lda #$34b2	                LDA #<>HANDLEIRQ            ; Take control of the IRQ vector
+.349d	8d ee ff	sta $ffee	                STA HIRQ
+.34a0	e2 20		sep #$20	            SEP #$20
+.34a2	a9 4c		lda #$4c	                LDA #$4C                    ; JMP opcode
+.34a4	85 10		sta $2010	                STA JMPOPCODE               ; Save it for jumps
+.34a6	af 4c 01 00	lda $00014c	                LDA @lINT_MASK_REG0         ; Enable SOF interrupts
+.34aa	29 fe		and #$fe	                AND #~FNX0_INT00_SOF
+.34ac	8f 4c 01 00	sta $00014c	                STA @lINT_MASK_REG0
+.34b0	28		plp		                PLP
+.34b1	60		rts		                RTS
+.34b2					HANDLEIRQ
+.34b2	c2 30		rep #$30	            REP #$30
+.34b4	8b		phb		                PHB
+.34b5	0b		phd		                PHD
+.34b6	48		pha		                PHA
+.34b7	da		phx		                PHX
+.34b8	5a		phy		                PHY
+.34b9	08		php		                PHP
+.34ba	e2 20		sep #$20	            SEP #$20
+.34bc	af 40 01 00	lda $000140	                LDA @lINT_PENDING_REG0
+.34c0	c9 00		cmp #$00	                CMP #$00
+.34c2	f0 1a		beq $34de	                BEQ done
+.34c4	af 40 01 00	lda $000140	                LDA @lINT_PENDING_REG0
+.34c8	29 01		and #$01	                AND #FNX0_INT00_SOF
+.34ca	c9 01		cmp #$01	                CMP #FNX0_INT00_SOF
+.34cc	d0 10		bne $34de	                BNE done
+.34ce	8f 40 01 00	sta $000140	                STA @lINT_PENDING_REG0
+.34d2	20 49 33	jsr $3349	                JSR UPDATE              ; Update all the active sprites that require an update
+.34d5	20 3f 35	jsr $353f	                JSR EXECTONE            ; Execute any pending tone instruction
+.34d8	e2 20		sep #$20	            SEP #$20
+.34da	a9 80		lda #$80	                LDA #ML_STAT_ANIMATE    ; Flag that we can update any active sprites
+.34dc	85 24		sta $2024	                STA STATUS
+.34de	28		plp		done            PLP
+.34df	7a		ply		                PLY
+.34e0	fa		plx		                PLX
+.34e1	68		pla		                PLA
+.34e2	2b		pld		                PLD
+.34e3	ab		plb		                PLB
+.34e4	4c 10 20	jmp $2010	                JMP JMPOPCODE           ; Go back to the original handler
+
+;******  Return to file: src\spaceship.s
+
+
+;******  Processing file: src\tones.s
+
+=$00					TONE_FINISH = $00           ; End the tones
+=$01					TONE_SET_ATTEN = $01        ; Set attenuation for the channel
+=$02					TONE_SET_FREQ = $02         ; Set the frequency of the channel
+=$03					TONE_WAIT = $03             ; Wait a number of ticks
+=$04					TONE_SET_ENV = $04          ; Set the ADSR envelope
+=$05					TONE_START_ENV = $05        ; Start the envelope cycle (ADS...)
+=$06					TONE_RELEASE = $06          ; Release the note (...R)
+=$00					TONE_STATE_SNC = $00        ; Channel is silent
+=$01					TONE_STATE_ATK = $01        ; Envelope is in the Attack stage
+=$02					TONE_STATE_DCY = $02        ; Envelope is in the Decay stage
+=$03					TONE_STATE_SUS = $03        ; Envelope is in the Sustain stage
+=$04					TONE_STATE_REL = $04        ; Envelope is in the Release stage
+.0000					ENVELOPE
+>0000					CHANNEL         .byte ?     ; Channel code appropriate for sending commands 00000000, 00100000, 01000000
+>0001					STATE           .byte ?     ; The current state of the envelope: silent, attack, decay, sustain, release
+>0002					ATTACK          .byte ?     ; The attack rate (attenuation values per tick)
+>0003					DECAY           .byte ?     ; The decay rate (attenuation values per tick)
+>0004					SUSTAIN         .byte ?     ; The sustain level (attenuation value)
+>0005					RELEASE         .byte ?     ; The release rate (attenuation values per tick)
+>0006					ATTENUATION     .byte ?     ; The current attenuation value
+>2063					TONECOUNT       .word ?                 ; Delay counter for executing instructions (if negative, to not execute tone instructions)
+>2065					TONEPTR         .dword ?                ; Pointer to tone instruction to execute
+.2069					CH0_ENV
+>2069					CHANNEL         .byte ?     ; Channel code appropriate for sending commands 00000000, 00100000, 01000000
+>206a					STATE           .byte ?     ; The current state of the envelope: silent, attack, decay, sustain, release
+>206b					ATTACK          .byte ?     ; The attack rate (attenuation values per tick)
+>206c					DECAY           .byte ?     ; The decay rate (attenuation values per tick)
+>206d					SUSTAIN         .byte ?     ; The sustain level (attenuation value)
+>206e					RELEASE         .byte ?     ; The release rate (attenuation values per tick)
+>206f					ATTENUATION     .byte ?     ; The current attenuation value
+.34e7					INITTONE
+.34e7	08		php		                PHP
+.34e8	c2 20		rep #$20	            REP #$20
+.34ea	a9 ff ff	lda #$ffff	                LDA #$FFFF              ; By default we play nothing
+.34ed	85 63		sta $2063	                STA TONECOUNT
+.34ef	64 65		stz $2065	                STZ TONEPTR             ; Point to nothing
+.34f1	64 67		stz $2067	                STZ TONEPTR+2
+.34f3	e2 20		sep #$20	            SEP #$20
+.34f5	a9 80		lda #$80	                LDA #$80                ; Shut off voice 0
+.34f7	8f 00 f1 af	sta $aff100	                STA @l SN76489
+.34fb	a9 00		lda #$00	                LDA #$00
+.34fd	8f 00 f1 af	sta $aff100	                STA @l SN76489
+.3501	a9 9f		lda #$9f	                LDA #$9F
+.3503	8f 00 f1 af	sta $aff100	                STA @l SN76489
+.3507	a9 a0		lda #$a0	                LDA #$A0                ; Shut off voice 1
+.3509	8f 00 f1 af	sta $aff100	                STA @l SN76489
+.350d	a9 00		lda #$00	                LDA #$00
+.350f	8f 00 f1 af	sta $aff100	                STA @l SN76489
+.3513	a9 bf		lda #$bf	                LDA #$BF
+.3515	8f 00 f1 af	sta $aff100	                STA @l SN76489
+.3519	a9 c0		lda #$c0	                LDA #$C0                ; Shut off voice 2
+.351b	8f 00 f1 af	sta $aff100	                STA @l SN76489
+.351f	a9 00		lda #$00	                LDA #$00
+.3521	8f 00 f1 af	sta $aff100	                STA @l SN76489
+.3525	a9 df		lda #$df	                LDA #$DF
+.3527	8f 00 f1 af	sta $aff100	                STA @l SN76489
+.352b	64 69		stz $2069	                STZ CH0_ENV.CHANNEL     ; Set the channel code for the envelope
+.352d	64 6a		stz $206a	                STZ CH0_ENV.STATE       ; Set the state to silence
+.352f	a9 04		lda #$04	                LDA #$04                ; Initialize the envelope to something ordinary
+.3531	85 6b		sta $206b	                STA CH0_ENV.ATTACK
+.3533	85 6c		sta $206c	                STA CH0_ENV.DECAY
+.3535	a9 01		lda #$01	                LDA #$01
+.3537	85 6e		sta $206e	                STA CH0_ENV.RELEASE
+.3539	a9 05		lda #$05	                LDA #$05
+.353b	85 6d		sta $206d	                STA CH0_ENV.SUSTAIN
+.353d	28		plp		                PLP
+.353e	60		rts		                RTS
+.353f					EXECTONE
+.353f	48		pha		                PHA
+.3540	da		phx		                PHX
+.3541	5a		phy		                PHY
+.3542	08		php		                PHP
+.3543	c2 10		rep #$10	            REP #$10
+.3545	a2 69 20	ldx #$2069	                LDX #<>CH0_ENV          ; Process the envelope on channel 0
+.3548	20 30 36	jsr $3630	                JSR PROCESSENV
+.354b	c2 20		rep #$20	            REP #$20
+.354d	a5 63		lda $2063	                LDA TONECOUNT           ; Check the tone counter
+.354f	f0 1f		beq $3570	                BEQ get_opcode          ; If it's 0, get the opcode
+.3551	10 03		bpl $3556	                BPL tick_down           ; If it's positive, we need to decrement
+.3553	82 15 00	brl $356b	                BRL done                ; If it's negative, we shouldn't do anything
+.3556	c6 63		dec $2063	tick_down       DEC TONECOUNT           ; Decrement the wait counter
+.3558	d0 11		bne $356b	                BNE done                ; If it's not zero, keep waiting
+.355a					advance
+.355a	c2 20		rep #$20	            REP #$20
+.355c	18		clc		                CLC                     ; Advance the TONEPTR to the next instruction
+.355d	a5 65		lda $2065	                LDA TONEPTR
+.355f	69 03 00	adc #$0003	                ADC #3
+.3562	85 65		sta $2065	                STA TONEPTR
+.3564	a5 67		lda $2067	                LDA TONEPTR+2
+.3566	69 00 00	adc #$0000	                ADC #0
+.3569	85 67		sta $2067	                STA TONEPTR+2
+.356b	28		plp		done            PLP
+.356c	7a		ply		                PLY
+.356d	fa		plx		                PLX
+.356e	68		pla		                PLA
+.356f	60		rts		                RTS
+.3570					get_opcode
+.3570	e2 20		sep #$20	            SEP #$20
+.3572	a0 00 00	ldy #$0000	                LDY #0
+.3575	b7 65		lda [$2065],y	                LDA [TONEPTR],Y         ; Get the opcode
+.3577	29 0f		and #$0f	                AND #$0F                ; Filter to just the opcode bits
+.3579	f0 6e		beq $35e9	                BEQ do_finish           ; If it's 0, we're done playing the sounds
+.357b	c9 01		cmp #$01	                CMP #TONE_SET_ATTEN     ; Is it SET_ATTENUATE
+.357d	f0 25		beq $35a4	                BEQ do_atten
+.357f	c9 02		cmp #$02	                CMP #TONE_SET_FREQ      ; Is it SET_FREQ
+.3581	f0 3b		beq $35be	                BEQ do_freq
+.3583	c9 03		cmp #$03	                CMP #TONE_WAIT          ; Is it WAIT?
+.3585	f0 12		beq $3599	                BEQ do_wait
+.3587	c9 04		cmp #$04	                CMP #TONE_SET_ENV       ; Is it SET ENVELOPE?
+.3589	f0 68		beq $35f3	                BEQ do_set_adsr
+.358b	c9 05		cmp #$05	                CMP #TONE_START_ENV     ; Start processing an envelope
+.358d	d0 03		bne $3592	                BNE chk_release
+.358f	82 88 00	brl $361a	                BRL do_start
+.3592	c9 06		cmp #$06	chk_release     CMP #TONE_RELEASE       ; Is it RELEASE?
+.3594	d0 c4		bne $355a	                BNE advance             ; Otherwise, just skip
+.3596	82 8e 00	brl $3627	                BRL do_release
+.3599					do_wait
+.3599	c2 20		rep #$20	            REP #$20
+.359b	a0 01 00	ldy #$0001	                LDY #1                  ; We need to set the TONECOUNT
+.359e	b7 65		lda [$2065],y	                LDA [TONEPTR],Y
+.35a0	85 63		sta $2063	                STA TONECOUNT
+.35a2	80 c7		bra $356b	                BRA done                ; And return to caller
+.35a4					do_atten
+.35a4	e2 20		sep #$20	            SEP #$20
+.35a6	b7 65		lda [$2065],y	                LDA [TONEPTR],Y         ; Get the opcode
+.35a8	29 30		and #$30	                AND #%00110000          ; Filter out the channel number
+.35aa	0a		asl a		                ASL A                   ; Move it to the right spot
+.35ab	09 90		ora #$90	                ORA #%10010000          ; Turn it into a set attenuation instruction for the chip
+.35ad	85 0a		sta $200a	                STA TEMP                ; Save it for the moment
+.35af	a0 01 00	ldy #$0001	                LDY #1                  ; Get the attenuation
+.35b2	b7 65		lda [$2065],y	                LDA [TONEPTR],Y
+.35b4	29 0f		and #$0f	                AND #$0F                ; Filter out any junk
+.35b6	05 0a		ora $200a	                ORA TEMP                ; Complete the instruction
+.35b8	8f 00 f1 af	sta $aff100	                STA @l SN76489          ; Send it to the sound chip
+.35bc	80 9c		bra $355a	                BRA advance             ; And go to the next instruction
+.35be					do_freq
+.35be	e2 20		sep #$20	            SEP #$20
+.35c0	b7 65		lda [$2065],y	                LDA [TONEPTR],Y         ; Get the opcode
+.35c2	29 30		and #$30	                AND #%00110000          ; Filter out the channel number
+.35c4	0a		asl a		                ASL A                   ; Move it to the right spot
+.35c5	09 80		ora #$80	                ORA #%10000000          ; Turn it into a set frequency instruction for the chip
+.35c7	85 0a		sta $200a	                STA TEMP                ; Save it for the moment
+.35c9	a0 01 00	ldy #$0001	                LDY #1                  ; Get the lower four bits of the frequency
+.35cc	b7 65		lda [$2065],y	                LDA [TONEPTR],Y
+.35ce	29 0f		and #$0f	                AND #$0F                ; Filter out the higher bits
+.35d0	05 0a		ora $200a	                ORA TEMP                ; Complete the first byte of the instruction
+.35d2	8f 00 f1 af	sta $aff100	                STA @l SN76489          ; Send it to the sound chip
+.35d6	c2 20		rep #$20	            REP #$20
+.35d8	b7 65		lda [$2065],y	                LDA [TONEPTR],Y         ; Get all the bits of the frequency
+.35da	4a		lsr a		                LSR A                   ; Drop the lower 4 bits
+.35db	4a		lsr a		                LSR A
+.35dc	4a		lsr a		                LSR A
+.35dd	4a		lsr a		                LSR A
+.35de	e2 20		sep #$20	            SEP #$20
+.35e0	29 3f		and #$3f	                AND #$3F                ; Filter it to 6 bits
+.35e2	8f 00 f1 af	sta $aff100	                STA @l SN76489          ; Send it to the sound chip
+.35e6	82 71 ff	brl $355a	                BRL advance             ; And go to the next instruction
+.35e9					do_finish
+.35e9	c2 20		rep #$20	            REP #$20
+.35eb	a9 ff ff	lda #$ffff	                LDA #$FFFF              ; Set the counter to -1
+.35ee	85 63		sta $2063	                STA TONECOUNT
+.35f0	82 78 ff	brl $356b	                BRL done
+.35f3					do_set_adsr
+.35f3	e2 20		sep #$20	            SEP #$20
+.35f5	a0 01 00	ldy #$0001	                LDY #1
+.35f8	b7 65		lda [$2065],y	                LDA [TONEPTR],Y         ; Get the sustain and release values
+.35fa	29 0f		and #$0f	                AND #$0F
+.35fc	85 6e		sta $206e	                STA CH0_ENV.RELEASE     ; Set release
+.35fe	b7 65		lda [$2065],y	                LDA [TONEPTR],Y         ; Get the sustain and release values
+.3600	4a		lsr a		                LSR A
+.3601	4a		lsr a		                LSR A
+.3602	4a		lsr a		                LSR A
+.3603	4a		lsr a		                LSR A
+.3604	85 6d		sta $206d	                STA CH0_ENV.SUSTAIN     ; Set sustain
+.3606	a0 02 00	ldy #$0002	                LDY #2
+.3609	b7 65		lda [$2065],y	                LDA [TONEPTR],Y         ; Get the attack and decay values
+.360b	29 0f		and #$0f	                AND #$0F
+.360d	85 6c		sta $206c	                STA CH0_ENV.DECAY       ; Set decay
+.360f	b7 65		lda [$2065],y	                LDA [TONEPTR],Y         ; Get the attack and decay values
+.3611	4a		lsr a		                LSR A
+.3612	4a		lsr a		                LSR A
+.3613	4a		lsr a		                LSR A
+.3614	4a		lsr a		                LSR A
+.3615	85 6b		sta $206b	                STA CH0_ENV.ATTACK      ; Set attack
+.3617	82 40 ff	brl $355a	                BRL advance
+.361a					do_start
+.361a	e2 20		sep #$20	            SEP #$20
+.361c	a9 0f		lda #$0f	                LDA #$0F                ; Set the initial attenuation
+.361e	85 6f		sta $206f	                STA CH0_ENV.ATTENUATION
+.3620	a9 01		lda #$01	                LDA #TONE_STATE_ATK     ; Move the envelope into the ATTACK state
+.3622	85 6a		sta $206a	                STA CH0_ENV.STATE
+.3624	82 33 ff	brl $355a	                BRL advance
+.3627					do_release
+.3627	e2 20		sep #$20	            SEP #$20
+.3629	a9 04		lda #$04	                LDA #TONE_STATE_REL     ; Move the envelope into the RELEASE state
+.362b	85 6a		sta $206a	                STA CH0_ENV.STATE
+.362d	82 2a ff	brl $355a	                BRL advance
+.3630					PROCESSENV
+.3630	08		php		                PHP
+.3631	8b		phb		                PHB
+.3632	08		php		            PHP
+.3633	e2 20		sep #$20	            SEP #$20
+.3635	48		pha		            PHA
+.3636	a9 00		lda #$00	            LDA #0
+.3638	48		pha		            PHA
+.3639	ab		plb		            PLB
+.363a	68		pla		            PLA
+.363b	28		plp		            PLP
+.363c	e2 20		sep #$20	            SEP #$20
+.363e	bd 01 00	lda $0001,x	                LDA ENVELOPE.STATE,X    ; Check the envelope's state
+.3641	f0 10		beq $3653	                BEQ done                ; If it's zero, we don't need to process it
+.3643	c9 03		cmp #$03	                CMP #TONE_STATE_SUS     ; Is it SUSTAIN?
+.3645	f0 0c		beq $3653	                BEQ done                ; Yes: we don't do anything here either
+.3647	c9 01		cmp #$01	                CMP #TONE_STATE_ATK     ; Dispatch: ATTACK?
+.3649	f0 0b		beq $3656	                BEQ do_attack
+.364b	c9 02		cmp #$02	                CMP #TONE_STATE_DCY     ; Dispatch: DECAY?
+.364d	f0 19		beq $3668	                BEQ do_decay
+.364f	c9 04		cmp #$04	                CMP #TONE_STATE_REL     ; Dispatch: RELEASE?
+.3651	f0 2b		beq $367e	                BEQ do_release
+.3653	ab		plb		done            PLB
+.3654	28		plp		                PLP
+.3655	60		rts		                RTS
+.3656	38		sec		do_attack       SEC
+.3657	bd 06 00	lda $0006,x	                LDA ENVELOPE.ATTENUATION,X  ; Get the attenuation
+.365a	fd 02 00	sbc $0002,x	                SBC ENVELOPE.ATTACK,X       ; Compute the new attenuation
+.365d	10 31		bpl $3690	                BPL set_attenuation         ; Is it >= 0? Set the attenuation
+.365f	a9 02		lda #$02	                LDA #TONE_STATE_DCY         ; Move the state to DECAY
+.3661	9d 01 00	sta $0001,x	                STA ENVELOPE.STATE,X
+.3664	a9 00		lda #$00	                LDA #$00                    ; And set the attenuation to 0
+.3666	80 28		bra $3690	                BRA set_attenuation
+.3668	18		clc		do_decay        CLC
+.3669	bd 06 00	lda $0006,x	                LDA ENVELOPE.ATTENUATION,X  ; Get the attenuation
+.366c	7d 03 00	adc $0003,x	                ADC ENVELOPE.DECAY,X        ; Compute the new attenuation
+.366f	dd 04 00	cmp $0004,x	                CMP ENVELOPE.SUSTAIN,X      ; Is it at SUSTAIN?
+.3672	90 1c		bcc $3690	                BLT set_attenuation         ; No: set the attenuation
+.3674	a9 03		lda #$03	                LDA #TONE_STATE_SUS         ; Move the state to SUSTAIN until the engine releases the note
+.3676	9d 01 00	sta $0001,x	                STA ENVELOPE.STATE,X
+.3679	bd 04 00	lda $0004,x	                LDA ENVELOPE.SUSTAIN,X      ; And set the attenuation to SUSTAIN
+.367c	80 12		bra $3690	                BRA set_attenuation
+.367e	18		clc		do_release      CLC
+.367f	bd 06 00	lda $0006,x	                LDA ENVELOPE.ATTENUATION,X  ; Get the attenuation
+.3682	7d 05 00	adc $0005,x	                ADC ENVELOPE.RELEASE,X      ; Compute the new attenuation
+.3685	c9 0f		cmp #$0f	                CMP #$0F                    ; Is it >15?
+.3687	90 07		bcc $3690	                BLT set_attenuation         ; No: set the attenuation
+.3689	a9 00		lda #$00	                LDA #TONE_STATE_SNC         ; Move the state to SILENCE
+.368b	9d 01 00	sta $0001,x	                STA ENVELOPE.STATE,X
+.368e	a9 0f		lda #$0f	                LDA #$0F                    ; And set the attenuation to 15
+.3690	9d 06 00	sta $0006,x	set_attenuation STA ENVELOPE.ATTENUATION,X  ; Save the new attenuation
+.3693	29 0f		and #$0f	                AND #$0F                    ; Make sure we don't have anything extra
+.3695	1d 00 00	ora $0000,x	                ORA ENVELOPE.CHANNEL,X      ; Add the channel selector bits
+.3698	09 90		ora #$90	                ORA #%10010000              ; Make it an attenuation command
+.369a	8f 00 f1 af	sta $aff100	                STA @l SN76489              ; Send the command
+.369e	82 b2 ff	brl $3653	                BRL done
+
+;******  Return to file: src\spaceship.s
+
+
+;******  Processing file: src\rsrc/colors.s
+
+.36a1					LUT_START
+>36a1	00 00 00 00			.byte 0, 0, 0, 0
+>36a5	aa 00 00 00			.byte 170, 0, 0, 0
+>36a9	00 aa 00 00			.byte 0, 170, 0, 0
+>36ad	aa aa 00 00			.byte 170, 170, 0, 0
+>36b1	00 00 aa 00			.byte 0, 0, 170, 0
+>36b5	aa 00 aa 00			.byte 170, 0, 170, 0
+>36b9	00 55 aa 00			.byte 0, 85, 170, 0
+>36bd	aa aa aa 00			.byte 170, 170, 170, 0
+>36c1	55 55 55 00			.byte 85, 85, 85, 0
+>36c5	ff 55 55 00			.byte 255, 85, 85, 0
+>36c9	55 ff 55 00			.byte 85, 255, 85, 0
+>36cd	ff ff 55 00			.byte 255, 255, 85, 0
+>36d1	55 55 ff 00			.byte 85, 85, 255, 0
+>36d5	ff 55 ff 00			.byte 255, 85, 255, 0
+>36d9	55 ff ff 00			.byte 85, 255, 255, 0
+>36dd	ff ff ff 00			.byte 255, 255, 255, 0
+>36e1	00 00 00 00			.byte 0, 0, 0, 0
+>36e5	10 10 10 00			.byte 16, 16, 16, 0
+>36e9	20 20 20 00			.byte 32, 32, 32, 0
+>36ed	35 35 35 00			.byte 53, 53, 53, 0
+>36f1	45 45 45 00			.byte 69, 69, 69, 0
+>36f5	55 55 55 00			.byte 85, 85, 85, 0
+>36f9	65 65 65 00			.byte 101, 101, 101, 0
+>36fd	75 75 75 00			.byte 117, 117, 117, 0
+>3701	8a 8a 8a 00			.byte 138, 138, 138, 0
+>3705	9a 9a 9a 00			.byte 154, 154, 154, 0
+>3709	aa aa aa 00			.byte 170, 170, 170, 0
+>370d	ba ba ba 00			.byte 186, 186, 186, 0
+>3711	ca ca ca 00			.byte 202, 202, 202, 0
+>3715	df df df 00			.byte 223, 223, 223, 0
+>3719	ef ef ef 00			.byte 239, 239, 239, 0
+>371d	ff ff ff 00			.byte 255, 255, 255, 0
+>3721	ff 00 00 00			.byte 255, 0, 0, 0
+>3725	ff 00 41 00			.byte 255, 0, 65, 0
+>3729	ff 00 82 00			.byte 255, 0, 130, 0
+>372d	ff 00 be 00			.byte 255, 0, 190, 0
+>3731	ff 00 ff 00			.byte 255, 0, 255, 0
+>3735	be 00 ff 00			.byte 190, 0, 255, 0
+>3739	82 00 ff 00			.byte 130, 0, 255, 0
+>373d	41 00 ff 00			.byte 65, 0, 255, 0
+>3741	00 00 ff 00			.byte 0, 0, 255, 0
+>3745	00 41 ff 00			.byte 0, 65, 255, 0
+>3749	00 82 ff 00			.byte 0, 130, 255, 0
+>374d	00 be ff 00			.byte 0, 190, 255, 0
+>3751	00 ff ff 00			.byte 0, 255, 255, 0
+>3755	00 ff be 00			.byte 0, 255, 190, 0
+>3759	00 ff 82 00			.byte 0, 255, 130, 0
+>375d	00 ff 41 00			.byte 0, 255, 65, 0
+>3761	00 ff 00 00			.byte 0, 255, 0, 0
+>3765	41 ff 00 00			.byte 65, 255, 0, 0
+>3769	82 ff 00 00			.byte 130, 255, 0, 0
+>376d	be ff 00 00			.byte 190, 255, 0, 0
+>3771	ff ff 00 00			.byte 255, 255, 0, 0
+>3775	ff be 00 00			.byte 255, 190, 0, 0
+>3779	ff 82 00 00			.byte 255, 130, 0, 0
+>377d	ff 41 00 00			.byte 255, 65, 0, 0
+>3781	ff 82 82 00			.byte 255, 130, 130, 0
+>3785	ff 82 9e 00			.byte 255, 130, 158, 0
+>3789	ff 82 be 00			.byte 255, 130, 190, 0
+>378d	ff 82 df 00			.byte 255, 130, 223, 0
+>3791	ff 82 ff 00			.byte 255, 130, 255, 0
+>3795	df 82 ff 00			.byte 223, 130, 255, 0
+>3799	be 82 ff 00			.byte 190, 130, 255, 0
+>379d	9e 82 ff 00			.byte 158, 130, 255, 0
+>37a1	82 82 ff 00			.byte 130, 130, 255, 0
+>37a5	82 9e ff 00			.byte 130, 158, 255, 0
+>37a9	82 be ff 00			.byte 130, 190, 255, 0
+>37ad	82 df ff 00			.byte 130, 223, 255, 0
+>37b1	82 ff ff 00			.byte 130, 255, 255, 0
+>37b5	82 ff df 00			.byte 130, 255, 223, 0
+>37b9	82 ff be 00			.byte 130, 255, 190, 0
+>37bd	82 ff 9e 00			.byte 130, 255, 158, 0
+>37c1	82 ff 82 00			.byte 130, 255, 130, 0
+>37c5	9e ff 82 00			.byte 158, 255, 130, 0
+>37c9	be ff 82 00			.byte 190, 255, 130, 0
+>37cd	df ff 82 00			.byte 223, 255, 130, 0
+>37d1	ff ff 82 00			.byte 255, 255, 130, 0
+>37d5	ff df 82 00			.byte 255, 223, 130, 0
+>37d9	ff be 82 00			.byte 255, 190, 130, 0
+>37dd	ff 9e 82 00			.byte 255, 158, 130, 0
+>37e1	ff ba ba 00			.byte 255, 186, 186, 0
+>37e5	ff ba ca 00			.byte 255, 186, 202, 0
+>37e9	ff ba df 00			.byte 255, 186, 223, 0
+>37ed	ff ba ef 00			.byte 255, 186, 239, 0
+>37f1	ff ba ff 00			.byte 255, 186, 255, 0
+>37f5	ef ba ff 00			.byte 239, 186, 255, 0
+>37f9	df ba ff 00			.byte 223, 186, 255, 0
+>37fd	ca ba ff 00			.byte 202, 186, 255, 0
+>3801	ba ba ff 00			.byte 186, 186, 255, 0
+>3805	ba ca ff 00			.byte 186, 202, 255, 0
+>3809	ba df ff 00			.byte 186, 223, 255, 0
+>380d	ba ef ff 00			.byte 186, 239, 255, 0
+>3811	ba ff ff 00			.byte 186, 255, 255, 0
+>3815	ba ff ef 00			.byte 186, 255, 239, 0
+>3819	ba ff df 00			.byte 186, 255, 223, 0
+>381d	ba ff ca 00			.byte 186, 255, 202, 0
+>3821	ba ff ba 00			.byte 186, 255, 186, 0
+>3825	ca ff ba 00			.byte 202, 255, 186, 0
+>3829	df ff ba 00			.byte 223, 255, 186, 0
+>382d	ef ff ba 00			.byte 239, 255, 186, 0
+>3831	ff ff ba 00			.byte 255, 255, 186, 0
+>3835	ff ef ba 00			.byte 255, 239, 186, 0
+>3839	ff df ba 00			.byte 255, 223, 186, 0
+>383d	ff ca ba 00			.byte 255, 202, 186, 0
+>3841	71 00 00 00			.byte 113, 0, 0, 0
+>3845	71 00 1c 00			.byte 113, 0, 28, 0
+>3849	71 00 39 00			.byte 113, 0, 57, 0
+>384d	71 00 55 00			.byte 113, 0, 85, 0
+>3851	71 00 71 00			.byte 113, 0, 113, 0
+>3855	55 00 71 00			.byte 85, 0, 113, 0
+>3859	39 00 71 00			.byte 57, 0, 113, 0
+>385d	1c 00 71 00			.byte 28, 0, 113, 0
+>3861	00 00 71 00			.byte 0, 0, 113, 0
+>3865	00 1c 71 00			.byte 0, 28, 113, 0
+>3869	00 39 71 00			.byte 0, 57, 113, 0
+>386d	00 55 71 00			.byte 0, 85, 113, 0
+>3871	00 71 71 00			.byte 0, 113, 113, 0
+>3875	00 71 55 00			.byte 0, 113, 85, 0
+>3879	00 71 39 00			.byte 0, 113, 57, 0
+>387d	00 71 1c 00			.byte 0, 113, 28, 0
+>3881	00 71 00 00			.byte 0, 113, 0, 0
+>3885	1c 71 00 00			.byte 28, 113, 0, 0
+>3889	39 71 00 00			.byte 57, 113, 0, 0
+>388d	55 71 00 00			.byte 85, 113, 0, 0
+>3891	71 71 00 00			.byte 113, 113, 0, 0
+>3895	71 55 00 00			.byte 113, 85, 0, 0
+>3899	71 39 00 00			.byte 113, 57, 0, 0
+>389d	71 1c 00 00			.byte 113, 28, 0, 0
+>38a1	71 39 39 00			.byte 113, 57, 57, 0
+>38a5	71 39 45 00			.byte 113, 57, 69, 0
+>38a9	71 39 55 00			.byte 113, 57, 85, 0
+>38ad	71 39 61 00			.byte 113, 57, 97, 0
+>38b1	71 39 71 00			.byte 113, 57, 113, 0
+>38b5	61 39 71 00			.byte 97, 57, 113, 0
+>38b9	55 39 71 00			.byte 85, 57, 113, 0
+>38bd	45 39 71 00			.byte 69, 57, 113, 0
+>38c1	39 39 71 00			.byte 57, 57, 113, 0
+>38c5	39 45 71 00			.byte 57, 69, 113, 0
+>38c9	39 55 71 00			.byte 57, 85, 113, 0
+>38cd	39 61 71 00			.byte 57, 97, 113, 0
+>38d1	39 71 71 00			.byte 57, 113, 113, 0
+>38d5	39 71 61 00			.byte 57, 113, 97, 0
+>38d9	39 71 55 00			.byte 57, 113, 85, 0
+>38dd	39 71 45 00			.byte 57, 113, 69, 0
+>38e1	39 71 39 00			.byte 57, 113, 57, 0
+>38e5	45 71 39 00			.byte 69, 113, 57, 0
+>38e9	55 71 39 00			.byte 85, 113, 57, 0
+>38ed	61 71 39 00			.byte 97, 113, 57, 0
+>38f1	71 71 39 00			.byte 113, 113, 57, 0
+>38f5	71 61 39 00			.byte 113, 97, 57, 0
+>38f9	71 55 39 00			.byte 113, 85, 57, 0
+>38fd	71 45 39 00			.byte 113, 69, 57, 0
+>3901	71 51 51 00			.byte 113, 81, 81, 0
+>3905	71 51 59 00			.byte 113, 81, 89, 0
+>3909	71 51 61 00			.byte 113, 81, 97, 0
+>390d	71 51 69 00			.byte 113, 81, 105, 0
+>3911	71 51 71 00			.byte 113, 81, 113, 0
+>3915	69 51 71 00			.byte 105, 81, 113, 0
+>3919	61 51 71 00			.byte 97, 81, 113, 0
+>391d	59 51 71 00			.byte 89, 81, 113, 0
+>3921	51 51 71 00			.byte 81, 81, 113, 0
+>3925	51 59 71 00			.byte 81, 89, 113, 0
+>3929	51 61 71 00			.byte 81, 97, 113, 0
+>392d	51 69 71 00			.byte 81, 105, 113, 0
+>3931	51 71 71 00			.byte 81, 113, 113, 0
+>3935	51 71 69 00			.byte 81, 113, 105, 0
+>3939	51 71 61 00			.byte 81, 113, 97, 0
+>393d	51 71 59 00			.byte 81, 113, 89, 0
+>3941	51 71 51 00			.byte 81, 113, 81, 0
+>3945	59 71 51 00			.byte 89, 113, 81, 0
+>3949	61 71 51 00			.byte 97, 113, 81, 0
+>394d	69 71 51 00			.byte 105, 113, 81, 0
+>3951	71 71 51 00			.byte 113, 113, 81, 0
+>3955	71 69 51 00			.byte 113, 105, 81, 0
+>3959	71 61 51 00			.byte 113, 97, 81, 0
+>395d	71 59 51 00			.byte 113, 89, 81, 0
+>3961	41 00 00 00			.byte 65, 0, 0, 0
+>3965	41 00 10 00			.byte 65, 0, 16, 0
+>3969	41 00 20 00			.byte 65, 0, 32, 0
+>396d	41 00 31 00			.byte 65, 0, 49, 0
+>3971	41 00 41 00			.byte 65, 0, 65, 0
+>3975	31 00 41 00			.byte 49, 0, 65, 0
+>3979	20 00 41 00			.byte 32, 0, 65, 0
+>397d	10 00 41 00			.byte 16, 0, 65, 0
+>3981	00 00 41 00			.byte 0, 0, 65, 0
+>3985	00 10 41 00			.byte 0, 16, 65, 0
+>3989	00 20 41 00			.byte 0, 32, 65, 0
+>398d	00 31 41 00			.byte 0, 49, 65, 0
+>3991	00 41 41 00			.byte 0, 65, 65, 0
+>3995	00 41 31 00			.byte 0, 65, 49, 0
+>3999	00 41 20 00			.byte 0, 65, 32, 0
+>399d	00 41 10 00			.byte 0, 65, 16, 0
+>39a1	00 41 00 00			.byte 0, 65, 0, 0
+>39a5	10 41 00 00			.byte 16, 65, 0, 0
+>39a9	20 41 00 00			.byte 32, 65, 0, 0
+>39ad	31 41 00 00			.byte 49, 65, 0, 0
+>39b1	41 41 00 00			.byte 65, 65, 0, 0
+>39b5	41 31 00 00			.byte 65, 49, 0, 0
+>39b9	41 20 00 00			.byte 65, 32, 0, 0
+>39bd	41 10 00 00			.byte 65, 16, 0, 0
+>39c1	41 20 20 00			.byte 65, 32, 32, 0
+>39c5	41 20 28 00			.byte 65, 32, 40, 0
+>39c9	41 20 31 00			.byte 65, 32, 49, 0
+>39cd	41 20 39 00			.byte 65, 32, 57, 0
+>39d1	41 20 41 00			.byte 65, 32, 65, 0
+>39d5	39 20 41 00			.byte 57, 32, 65, 0
+>39d9	31 20 41 00			.byte 49, 32, 65, 0
+>39dd	28 20 41 00			.byte 40, 32, 65, 0
+>39e1	20 20 41 00			.byte 32, 32, 65, 0
+>39e5	20 28 41 00			.byte 32, 40, 65, 0
+>39e9	20 31 41 00			.byte 32, 49, 65, 0
+>39ed	20 39 41 00			.byte 32, 57, 65, 0
+>39f1	20 41 41 00			.byte 32, 65, 65, 0
+>39f5	20 41 39 00			.byte 32, 65, 57, 0
+>39f9	20 41 31 00			.byte 32, 65, 49, 0
+>39fd	20 41 28 00			.byte 32, 65, 40, 0
+>3a01	20 41 20 00			.byte 32, 65, 32, 0
+>3a05	28 41 20 00			.byte 40, 65, 32, 0
+>3a09	31 41 20 00			.byte 49, 65, 32, 0
+>3a0d	39 41 20 00			.byte 57, 65, 32, 0
+>3a11	41 41 20 00			.byte 65, 65, 32, 0
+>3a15	41 39 20 00			.byte 65, 57, 32, 0
+>3a19	41 31 20 00			.byte 65, 49, 32, 0
+>3a1d	41 28 20 00			.byte 65, 40, 32, 0
+>3a21	41 2d 2d 00			.byte 65, 45, 45, 0
+>3a25	41 2d 31 00			.byte 65, 45, 49, 0
+>3a29	41 2d 35 00			.byte 65, 45, 53, 0
+>3a2d	41 2d 3d 00			.byte 65, 45, 61, 0
+>3a31	41 2d 41 00			.byte 65, 45, 65, 0
+>3a35	3d 2d 41 00			.byte 61, 45, 65, 0
+>3a39	35 2d 41 00			.byte 53, 45, 65, 0
+>3a3d	31 2d 41 00			.byte 49, 45, 65, 0
+>3a41	2d 2d 41 00			.byte 45, 45, 65, 0
+>3a45	2d 31 41 00			.byte 45, 49, 65, 0
+>3a49	2d 35 41 00			.byte 45, 53, 65, 0
+>3a4d	2d 3d 41 00			.byte 45, 61, 65, 0
+>3a51	2d 41 41 00			.byte 45, 65, 65, 0
+>3a55	2d 41 3d 00			.byte 45, 65, 61, 0
+>3a59	2d 41 35 00			.byte 45, 65, 53, 0
+>3a5d	2d 41 31 00			.byte 45, 65, 49, 0
+>3a61	2d 41 2d 00			.byte 45, 65, 45, 0
+>3a65	31 41 2d 00			.byte 49, 65, 45, 0
+>3a69	35 41 2d 00			.byte 53, 65, 45, 0
+>3a6d	3d 41 2d 00			.byte 61, 65, 45, 0
+>3a71	41 41 2d 00			.byte 65, 65, 45, 0
+>3a75	41 3d 2d 00			.byte 65, 61, 45, 0
+>3a79	41 35 2d 00			.byte 65, 53, 45, 0
+>3a7d	41 31 2d 00			.byte 65, 49, 45, 0
+>3a81	00 00 00 00			.byte 0, 0, 0, 0
+>3a85	00 00 00 00			.byte 0, 0, 0, 0
+>3a89	00 00 00 00			.byte 0, 0, 0, 0
+>3a8d	00 00 00 00			.byte 0, 0, 0, 0
+>3a91	00 00 00 00			.byte 0, 0, 0, 0
+>3a95	00 00 00 00			.byte 0, 0, 0, 0
+>3a99	00 00 00 00			.byte 0, 0, 0, 0
+>3a9d	00 00 00 00			.byte 0, 0, 0, 0
+=$003aa1				LUT_END = *
+
+;******  Return to file: src\spaceship.s
+
+
+;******  Processing file: src\rsrc/spaceship_stationary.s
+
+=$110000				SHIP_STATIONARY = *
+>110000	4d 00 01 17 04 00 01 17		.byte 77, 0, 1, 23, 4, 0, 1, 23, 26, 0, 1, 23, 4, 0, 1, 23
+>110008	1a 00 01 17 04 00 01 17
+>110010	19 00 02 17 04 00 02 17		.byte 25, 0, 2, 23, 4, 0, 2, 23, 23, 0, 1, 40, 2, 23, 4, 0
+>110018	17 00 01 28 02 17 04 00
+>110020	02 17 01 30 16 00 01 16		.byte 2, 23, 1, 48, 22, 0, 1, 22, 2, 23, 4, 0, 2, 23, 1, 22
+>110028	02 17 04 00 02 17 01 16
+>110030	16 00 01 16 02 17 04 00		.byte 22, 0, 1, 22, 2, 23, 4, 0, 2, 23, 1, 22, 21, 0, 2, 22
+>110038	02 17 01 16 15 00 02 16
+>110040	02 17 04 00 02 17 02 16		.byte 2, 23, 4, 0, 2, 23, 2, 22, 20, 0, 2, 22, 2, 23, 1, 22
+>110048	14 00 02 16 02 17 01 16
+>110050	02 00 01 16 02 17 02 16		.byte 2, 0, 1, 22, 2, 23, 2, 22, 19, 0, 1, 21, 2, 22, 1, 31
+>110058	13 00 01 15 02 16 01 1f
+>110060	01 17 01 16 02 17 01 16		.byte 1, 23, 1, 22, 2, 23, 1, 22, 1, 23, 1, 31, 2, 22, 1, 21
+>110068	01 17 01 1f 02 16 01 15
+>110070	12 00 01 15 02 16 01 1f		.byte 18, 0, 1, 21, 2, 22, 1, 31, 1, 23, 1, 22, 2, 23, 1, 22
+>110078	01 17 01 16 02 17 01 16
+>110080	01 17 01 1f 02 16 01 15		.byte 1, 23, 1, 31, 2, 22, 1, 21, 17, 0, 2, 21, 2, 22, 1, 31
+>110088	11 00 02 15 02 16 01 1f
+>110090	01 17 01 16 02 17 01 16		.byte 1, 23, 1, 22, 2, 23, 1, 22, 1, 23, 1, 31, 2, 22, 2, 21
+>110098	01 17 01 1f 02 16 02 15
+>1100a0	10 00 02 15 02 16 01 1f		.byte 16, 0, 2, 21, 2, 22, 1, 31, 1, 23, 1, 22, 2, 100, 1, 22
+>1100a8	01 17 01 16 02 64 01 16
+>1100b0	01 17 01 1f 02 16 02 15		.byte 1, 23, 1, 31, 2, 22, 2, 21, 15, 0, 1, 20, 2, 21, 1, 22
+>1100b8	0f 00 01 14 02 15 01 16
+>1100c0	01 1f 02 17 01 65 02 64		.byte 1, 31, 2, 23, 1, 101, 2, 100, 1, 101, 2, 23, 1, 31, 1, 22
+>1100c8	01 65 02 17 01 1f 01 16
+>1100d0	02 15 01 14 0e 00 01 14		.byte 2, 21, 1, 20, 14, 0, 1, 20, 2, 21, 1, 31, 1, 22, 2, 23
+>1100d8	02 15 01 1f 01 16 02 17
+>1100e0	01 65 02 64 01 65 02 17		.byte 1, 101, 2, 100, 1, 101, 2, 23, 1, 22, 1, 31, 2, 21, 1, 20
+>1100e8	01 16 01 1f 02 15 01 14
+>1100f0	0d 00 02 14 02 15 01 1f		.byte 13, 0, 2, 20, 2, 21, 1, 31, 1, 22, 1, 23, 1, 102, 1, 101
+>1100f8	01 16 01 17 01 66 01 65
+>110100	02 64 01 65 01 66 01 17		.byte 2, 100, 1, 101, 1, 102, 1, 23, 1, 22, 1, 31, 2, 21, 2, 20
+>110108	01 16 01 1f 02 15 02 14
+>110110	0c 00 02 14 02 15 01 1f		.byte 12, 0, 2, 20, 2, 21, 1, 31, 1, 22, 1, 23, 1, 102, 1, 101
+>110118	01 16 01 17 01 66 01 65
+>110120	02 64 01 65 01 66 01 17		.byte 2, 100, 1, 101, 1, 102, 1, 23, 1, 22, 1, 31, 2, 21, 2, 20
+>110128	01 16 01 1f 02 15 02 14
+>110130	0b 00 03 14 02 15 01 1f		.byte 11, 0, 3, 20, 2, 21, 1, 31, 1, 22, 1, 23, 1, 102, 1, 101
+>110138	01 16 01 17 01 66 01 65
+>110140	02 64 01 65 01 66 01 17		.byte 2, 100, 1, 101, 1, 102, 1, 23, 1, 22, 1, 31, 2, 21, 3, 20
+>110148	01 16 01 1f 02 15 03 14
+>110150	09 00 01 28 03 14 02 15		.byte 9, 0, 1, 40, 3, 20, 2, 21, 1, 31, 1, 22, 1, 23, 1, 102
+>110158	01 1f 01 16 01 17 01 66
+>110160	01 65 02 64 01 65 01 66		.byte 1, 101, 2, 100, 1, 101, 1, 102, 1, 23, 1, 22, 1, 31, 2, 21
+>110168	01 17 01 16 01 1f 02 15
+>110170	03 14 01 30 08 00 01 15		.byte 3, 20, 1, 48, 8, 0, 1, 21, 3, 20, 2, 21, 1, 31, 1, 22
+>110178	03 14 02 15 01 1f 01 16
+>110180	01 17 01 66 01 65 02 64		.byte 1, 23, 1, 102, 1, 101, 2, 100, 1, 101, 1, 102, 1, 23, 1, 22
+>110188	01 65 01 66 01 17 01 16
+>110190	01 1f 02 15 03 14 01 15		.byte 1, 31, 2, 21, 3, 20, 1, 21, 8, 0, 1, 21, 3, 20, 2, 21
+>110198	08 00 01 15 03 14 02 15
+>1101a0	01 1f 01 16 01 17 01 66		.byte 1, 31, 1, 22, 1, 23, 1, 102, 1, 101, 2, 100, 1, 101, 1, 102
+>1101a8	01 65 02 64 01 65 01 66
+>1101b0	01 17 01 16 01 1f 02 15		.byte 1, 23, 1, 22, 1, 31, 2, 21, 3, 20, 1, 21, 7, 0, 1, 23
+>1101b8	03 14 01 15 07 00 01 17
+>1101c0	01 15 03 14 02 15 01 1f		.byte 1, 21, 3, 20, 2, 21, 1, 31, 1, 22, 1, 23, 1, 102, 1, 101
+>1101c8	01 16 01 17 01 66 01 65
+>1101d0	02 64 01 65 01 66 01 17		.byte 2, 100, 1, 101, 1, 102, 1, 23, 1, 22, 1, 31, 2, 21, 3, 20
+>1101d8	01 16 01 1f 02 15 03 14
+>1101e0	01 15 01 17 06 00 01 17		.byte 1, 21, 1, 23, 6, 0, 1, 23, 1, 21, 3, 20, 2, 21, 1, 31
+>1101e8	01 15 03 14 02 15 01 1f
+>1101f0	01 16 01 17 01 66 01 65		.byte 1, 22, 1, 23, 1, 102, 1, 101, 2, 100, 1, 101, 1, 102, 1, 23
+>1101f8	02 64 01 65 01 66 01 17
+>110200	01 16 01 1f 02 15 03 14		.byte 1, 22, 1, 31, 2, 21, 3, 20, 1, 21, 1, 23, 7, 0, 1, 21
+>110208	01 15 01 17 07 00 01 15
+>110210	03 14 02 15 01 1f 01 16		.byte 3, 20, 2, 21, 1, 31, 1, 22, 1, 23, 1, 20, 4, 22, 1, 20
+>110218	01 17 01 14 04 16 01 14
+>110220	01 17 01 16 01 1f 02 15		.byte 1, 23, 1, 22, 1, 31, 2, 21, 3, 20, 1, 21, 10, 0, 2, 20
+>110228	03 14 01 15 0a 00 02 14
+>110230	02 15 02 16 02 17 04 16		.byte 2, 21, 2, 22, 2, 23, 4, 22, 2, 23, 2, 22, 2, 21, 2, 20
+>110238	02 17 02 16 02 15 02 14
+>110240	0e 00 02 15 02 16 02 17		.byte 14, 0, 2, 21, 2, 22, 2, 23, 1, 22, 2, 23, 1, 22, 2, 23
+>110248	01 16 02 17 01 16 02 17
+>110250	02 16 02 15 12 00 02 16		.byte 2, 22, 2, 21, 18, 0, 2, 22, 2, 23, 1, 22, 2, 23, 1, 22
+>110258	02 17 01 16 02 17 01 16
+>110260	02 17 02 16 16 00 08 15		.byte 2, 23, 2, 22, 22, 0, 8, 21, 24, 0, 8, 21, 76, 0
+>110268	18 00 08 15 4c 00
+>11026e	00 00				.byte 0, 0
+
+;******  Return to file: src\spaceship.s
+
+
+;******  Processing file: src\rsrc/spaceship1_pix.s
+
+=$110270				SHIP_UP = *
+>110270	4d 00 01 17 01 34 02 00		.byte 77, 0, 1, 23, 1, 52, 2, 0, 1, 52, 1, 23, 26, 0, 1, 23
+>110278	01 34 01 17 1a 00 01 17
+>110280	01 00 01 34 01 00 01 34		.byte 1, 0, 1, 52, 1, 0, 1, 52, 1, 23, 25, 0, 2, 23, 1, 0
+>110288	01 17 19 00 02 17 01 00
+>110290	02 34 01 00 02 17 17 00		.byte 2, 52, 1, 0, 2, 23, 23, 0, 1, 40, 2, 23, 4, 0, 2, 23
+>110298	01 28 02 17 04 00 02 17
+>1102a0	01 30 16 00 01 16 02 17		.byte 1, 48, 22, 0, 1, 22, 2, 23, 4, 0, 2, 23, 1, 22, 22, 0
+>1102a8	04 00 02 17 01 16 16 00
+>1102b0	01 16 02 17 04 00 02 17		.byte 1, 22, 2, 23, 4, 0, 2, 23, 1, 22, 21, 0, 2, 22, 2, 23
+>1102b8	01 16 15 00 02 16 02 17
+>1102c0	04 00 02 17 02 16 14 00		.byte 4, 0, 2, 23, 2, 22, 20, 0, 2, 22, 2, 23, 1, 22, 2, 0
+>1102c8	02 16 02 17 01 16 02 00
+>1102d0	01 16 02 17 02 16 13 00		.byte 1, 22, 2, 23, 2, 22, 19, 0, 1, 21, 2, 22, 1, 52, 1, 23
+>1102d8	01 15 02 16 01 34 01 17
+>1102e0	01 16 02 17 01 16 01 17		.byte 1, 22, 2, 23, 1, 22, 1, 23, 1, 52, 2, 22, 1, 21, 18, 0
+>1102e8	01 34 02 16 01 15 12 00
+>1102f0	01 15 02 16 01 34 01 17		.byte 1, 21, 2, 22, 1, 52, 1, 23, 1, 22, 2, 23, 1, 22, 1, 23
+>1102f8	01 16 02 17 01 16 01 17
+>110300	01 34 02 16 01 15 11 00		.byte 1, 52, 2, 22, 1, 21, 17, 0, 2, 21, 2, 22, 1, 52, 1, 23
+>110308	02 15 02 16 01 34 01 17
+>110310	01 16 02 17 01 16 01 17		.byte 1, 22, 2, 23, 1, 22, 1, 23, 1, 52, 2, 22, 2, 21, 16, 0
+>110318	01 34 02 16 02 15 10 00
+>110320	02 15 02 16 01 35 01 17		.byte 2, 21, 2, 22, 1, 53, 1, 23, 1, 22, 2, 100, 1, 22, 1, 23
+>110328	01 16 02 64 01 16 01 17
+>110330	01 35 02 16 02 15 0f 00		.byte 1, 53, 2, 22, 2, 21, 15, 0, 1, 20, 2, 21, 1, 22, 1, 53
+>110338	01 14 02 15 01 16 01 35
+>110340	02 17 01 65 02 64 01 65		.byte 2, 23, 1, 101, 2, 100, 1, 101, 2, 23, 1, 53, 1, 22, 2, 21
+>110348	02 17 01 35 01 16 02 15
+>110350	01 14 0e 00 01 14 02 15		.byte 1, 20, 14, 0, 1, 20, 2, 21, 1, 53, 1, 22, 2, 23, 1, 101
+>110358	01 35 01 16 02 17 01 65
+>110360	02 64 01 65 02 17 01 16		.byte 2, 100, 1, 101, 2, 23, 1, 22, 1, 53, 2, 21, 1, 20, 13, 0
+>110368	01 35 02 15 01 14 0d 00
+>110370	02 14 02 15 01 36 01 16		.byte 2, 20, 2, 21, 1, 54, 1, 22, 1, 23, 1, 102, 1, 101, 2, 100
+>110378	01 17 01 66 01 65 02 64
+>110380	01 65 01 66 01 17 01 16		.byte 1, 101, 1, 102, 1, 23, 1, 22, 1, 54, 2, 21, 2, 20, 12, 0
+>110388	01 36 02 15 02 14 0c 00
+>110390	02 14 02 15 01 36 01 16		.byte 2, 20, 2, 21, 1, 54, 1, 22, 1, 23, 1, 102, 1, 101, 2, 100
+>110398	01 17 01 66 01 65 02 64
+>1103a0	01 65 01 66 01 17 01 16		.byte 1, 101, 1, 102, 1, 23, 1, 22, 1, 54, 2, 21, 2, 20, 11, 0
+>1103a8	01 36 02 15 02 14 0b 00
+>1103b0	03 14 02 15 01 36 01 16		.byte 3, 20, 2, 21, 1, 54, 1, 22, 1, 23, 1, 102, 1, 101, 2, 100
+>1103b8	01 17 01 66 01 65 02 64
+>1103c0	01 65 01 66 01 17 01 16		.byte 1, 101, 1, 102, 1, 23, 1, 22, 1, 54, 2, 21, 3, 20, 9, 0
+>1103c8	01 36 02 15 03 14 09 00
+>1103d0	01 28 03 14 02 15 01 37		.byte 1, 40, 3, 20, 2, 21, 1, 55, 1, 22, 1, 23, 1, 102, 1, 101
+>1103d8	01 16 01 17 01 66 01 65
+>1103e0	02 64 01 65 01 66 01 17		.byte 2, 100, 1, 101, 1, 102, 1, 23, 1, 22, 1, 55, 2, 21, 3, 20
+>1103e8	01 16 01 37 02 15 03 14
+>1103f0	01 30 08 00 01 15 03 14		.byte 1, 48, 8, 0, 1, 21, 3, 20, 2, 21, 1, 55, 1, 22, 1, 23
+>1103f8	02 15 01 37 01 16 01 17
+>110400	01 66 01 65 02 64 01 65		.byte 1, 102, 1, 101, 2, 100, 1, 101, 1, 102, 1, 23, 1, 22, 1, 55
+>110408	01 66 01 17 01 16 01 37
+>110410	02 15 03 14 01 15 08 00		.byte 2, 21, 3, 20, 1, 21, 8, 0, 1, 21, 3, 20, 2, 21, 1, 55
+>110418	01 15 03 14 02 15 01 37
+>110420	01 16 01 17 01 66 01 65		.byte 1, 22, 1, 23, 1, 102, 1, 101, 2, 100, 1, 101, 1, 102, 1, 23
+>110428	02 64 01 65 01 66 01 17
+>110430	01 16 01 37 02 15 03 14		.byte 1, 22, 1, 55, 2, 21, 3, 20, 1, 21, 7, 0, 1, 23, 1, 21
+>110438	01 15 07 00 01 17 01 15
+>110440	03 14 02 15 01 20 01 16		.byte 3, 20, 2, 21, 1, 32, 1, 22, 1, 23, 1, 102, 1, 101, 2, 100
+>110448	01 17 01 66 01 65 02 64
+>110450	01 65 01 66 01 17 01 16		.byte 1, 101, 1, 102, 1, 23, 1, 22, 1, 32, 2, 21, 3, 20, 1, 21
+>110458	01 20 02 15 03 14 01 15
+>110460	01 17 06 00 01 17 01 15		.byte 1, 23, 6, 0, 1, 23, 1, 21, 3, 20, 2, 21, 1, 32, 1, 22
+>110468	03 14 02 15 01 20 01 16
+>110470	01 17 01 66 01 65 02 64		.byte 1, 23, 1, 102, 1, 101, 2, 100, 1, 101, 1, 102, 1, 23, 1, 22
+>110478	01 65 01 66 01 17 01 16
+>110480	01 20 02 15 03 14 01 15		.byte 1, 32, 2, 21, 3, 20, 1, 21, 1, 23, 7, 0, 1, 21, 3, 20
+>110488	01 17 07 00 01 15 03 14
+>110490	02 15 01 20 01 16 01 17		.byte 2, 21, 1, 32, 1, 22, 1, 23, 1, 20, 4, 22, 1, 20, 1, 23
+>110498	01 14 04 16 01 14 01 17
+>1104a0	01 16 01 20 02 15 03 14		.byte 1, 22, 1, 32, 2, 21, 3, 20, 1, 21, 10, 0, 2, 20, 2, 21
+>1104a8	01 15 0a 00 02 14 02 15
+>1104b0	02 16 02 17 04 16 02 17		.byte 2, 22, 2, 23, 4, 22, 2, 23, 2, 22, 2, 21, 2, 20, 14, 0
+>1104b8	02 16 02 15 02 14 0e 00
+>1104c0	02 15 02 16 02 17 01 16		.byte 2, 21, 2, 22, 2, 23, 1, 22, 2, 23, 1, 22, 2, 23, 2, 22
+>1104c8	02 17 01 16 02 17 02 16
+>1104d0	02 15 12 00 02 16 02 17		.byte 2, 21, 18, 0, 2, 22, 2, 23, 1, 22, 2, 23, 1, 22, 2, 23
+>1104d8	01 16 02 17 01 16 02 17
+>1104e0	02 16 16 00 08 15 18 00		.byte 2, 22, 22, 0, 8, 21, 24, 0, 8, 21, 24, 0, 1, 43, 1, 41
+>1104e8	08 15 18 00 01 2b 01 29
+>1104f0	01 2b 02 00 01 2b 01 29		.byte 1, 43, 2, 0, 1, 43, 1, 41, 1, 43, 25, 0, 1, 43, 4, 0
+>1104f8	01 2b 19 00 01 2b 04 00
+>110500	01 2b 5a 00 01 17 02 00		.byte 1, 43, 90, 0, 1, 23, 2, 0, 1, 52, 1, 0, 1, 23, 26, 0
+>110508	01 34 01 00 01 17 1a 00
+>110510	01 17 01 00 01 34 01 00		.byte 1, 23, 1, 0, 1, 52, 1, 0, 1, 52, 1, 23, 25, 0, 2, 23
+>110518	01 34 01 17 19 00 02 17
+>110520	01 34 03 00 02 17 17 00		.byte 1, 52, 3, 0, 2, 23, 23, 0, 1, 40, 2, 23, 4, 0, 2, 23
+>110528	01 28 02 17 04 00 02 17
+>110530	01 30 16 00 01 16 02 17		.byte 1, 48, 22, 0, 1, 22, 2, 23, 4, 0, 2, 23, 1, 22, 22, 0
+>110538	04 00 02 17 01 16 16 00
+>110540	01 16 02 17 04 00 02 17		.byte 1, 22, 2, 23, 4, 0, 2, 23, 1, 22, 21, 0, 2, 22, 2, 23
+>110548	01 16 15 00 02 16 02 17
+>110550	04 00 02 17 02 16 14 00		.byte 4, 0, 2, 23, 2, 22, 20, 0, 2, 22, 2, 23, 1, 22, 2, 0
+>110558	02 16 02 17 01 16 02 00
+>110560	01 16 02 17 02 16 13 00		.byte 1, 22, 2, 23, 2, 22, 19, 0, 1, 21, 2, 22, 1, 53, 1, 23
+>110568	01 15 02 16 01 35 01 17
+>110570	01 16 02 17 01 16 01 17		.byte 1, 22, 2, 23, 1, 22, 1, 23, 1, 53, 2, 22, 1, 21, 18, 0
+>110578	01 35 02 16 01 15 12 00
+>110580	01 15 02 16 01 35 01 17		.byte 1, 21, 2, 22, 1, 53, 1, 23, 1, 22, 2, 23, 1, 22, 1, 23
+>110588	01 16 02 17 01 16 01 17
+>110590	01 35 02 16 01 15 11 00		.byte 1, 53, 2, 22, 1, 21, 17, 0, 2, 21, 2, 22, 1, 53, 1, 23
+>110598	02 15 02 16 01 35 01 17
+>1105a0	01 16 02 17 01 16 01 17		.byte 1, 22, 2, 23, 1, 22, 1, 23, 1, 53, 2, 22, 2, 21, 16, 0
+>1105a8	01 35 02 16 02 15 10 00
+>1105b0	02 15 02 16 01 36 01 17		.byte 2, 21, 2, 22, 1, 54, 1, 23, 1, 22, 2, 100, 1, 22, 1, 23
+>1105b8	01 16 02 64 01 16 01 17
+>1105c0	01 36 02 16 02 15 0f 00		.byte 1, 54, 2, 22, 2, 21, 15, 0, 1, 20, 2, 21, 1, 22, 1, 54
+>1105c8	01 14 02 15 01 16 01 36
+>1105d0	02 17 01 65 02 64 01 65		.byte 2, 23, 1, 101, 2, 100, 1, 101, 2, 23, 1, 54, 1, 22, 2, 21
+>1105d8	02 17 01 36 01 16 02 15
+>1105e0	01 14 0e 00 01 14 02 15		.byte 1, 20, 14, 0, 1, 20, 2, 21, 1, 54, 1, 22, 2, 23, 1, 101
+>1105e8	01 36 01 16 02 17 01 65
+>1105f0	02 64 01 65 02 17 01 16		.byte 2, 100, 1, 101, 2, 23, 1, 22, 1, 54, 2, 21, 1, 20, 13, 0
+>1105f8	01 36 02 15 01 14 0d 00
+>110600	02 14 02 15 01 37 01 16		.byte 2, 20, 2, 21, 1, 55, 1, 22, 1, 23, 1, 102, 1, 101, 2, 100
+>110608	01 17 01 66 01 65 02 64
+>110610	01 65 01 66 01 17 01 16		.byte 1, 101, 1, 102, 1, 23, 1, 22, 1, 55, 2, 21, 2, 20, 12, 0
+>110618	01 37 02 15 02 14 0c 00
+>110620	02 14 02 15 01 37 01 16		.byte 2, 20, 2, 21, 1, 55, 1, 22, 1, 23, 1, 102, 1, 101, 2, 100
+>110628	01 17 01 66 01 65 02 64
+>110630	01 65 01 66 01 17 01 16		.byte 1, 101, 1, 102, 1, 23, 1, 22, 1, 55, 2, 21, 2, 20, 11, 0
+>110638	01 37 02 15 02 14 0b 00
+>110640	03 14 02 15 01 37 01 16		.byte 3, 20, 2, 21, 1, 55, 1, 22, 1, 23, 1, 102, 1, 101, 2, 100
+>110648	01 17 01 66 01 65 02 64
+>110650	01 65 01 66 01 17 01 16		.byte 1, 101, 1, 102, 1, 23, 1, 22, 1, 55, 2, 21, 3, 20, 9, 0
+>110658	01 37 02 15 03 14 09 00
+>110660	01 28 03 14 02 15 01 20		.byte 1, 40, 3, 20, 2, 21, 1, 32, 1, 22, 1, 23, 1, 102, 1, 101
+>110668	01 16 01 17 01 66 01 65
+>110670	02 64 01 65 01 66 01 17		.byte 2, 100, 1, 101, 1, 102, 1, 23, 1, 22, 1, 32, 2, 21, 3, 20
+>110678	01 16 01 20 02 15 03 14
+>110680	01 30 08 00 01 15 03 14		.byte 1, 48, 8, 0, 1, 21, 3, 20, 2, 21, 1, 32, 1, 22, 1, 23
+>110688	02 15 01 20 01 16 01 17
+>110690	01 66 01 65 02 64 01 65		.byte 1, 102, 1, 101, 2, 100, 1, 101, 1, 102, 1, 23, 1, 22, 1, 32
+>110698	01 66 01 17 01 16 01 20
+>1106a0	02 15 03 14 01 15 08 00		.byte 2, 21, 3, 20, 1, 21, 8, 0, 1, 21, 3, 20, 2, 21, 1, 32
+>1106a8	01 15 03 14 02 15 01 20
+>1106b0	01 16 01 17 01 66 01 65		.byte 1, 22, 1, 23, 1, 102, 1, 101, 2, 100, 1, 101, 1, 102, 1, 23
+>1106b8	02 64 01 65 01 66 01 17
+>1106c0	01 16 01 20 02 15 03 14		.byte 1, 22, 1, 32, 2, 21, 3, 20, 1, 21, 7, 0, 1, 23, 1, 21
+>1106c8	01 15 07 00 01 17 01 15
+>1106d0	03 14 02 15 01 34 01 16		.byte 3, 20, 2, 21, 1, 52, 1, 22, 1, 23, 1, 102, 1, 101, 2, 100
+>1106d8	01 17 01 66 01 65 02 64
+>1106e0	01 65 01 66 01 17 01 16		.byte 1, 101, 1, 102, 1, 23, 1, 22, 1, 52, 2, 21, 3, 20, 1, 21
+>1106e8	01 34 02 15 03 14 01 15
+>1106f0	01 17 06 00 01 17 01 15		.byte 1, 23, 6, 0, 1, 23, 1, 21, 3, 20, 2, 21, 1, 52, 1, 22
+>1106f8	03 14 02 15 01 34 01 16
+>110700	01 17 01 66 01 65 02 64		.byte 1, 23, 1, 102, 1, 101, 2, 100, 1, 101, 1, 102, 1, 23, 1, 22
+>110708	01 65 01 66 01 17 01 16
+>110710	01 34 02 15 03 14 01 15		.byte 1, 52, 2, 21, 3, 20, 1, 21, 1, 23, 7, 0, 1, 21, 3, 20
+>110718	01 17 07 00 01 15 03 14
+>110720	02 15 01 34 01 16 01 17		.byte 2, 21, 1, 52, 1, 22, 1, 23, 1, 20, 4, 22, 1, 20, 1, 23
+>110728	01 14 04 16 01 14 01 17
+>110730	01 16 01 34 02 15 03 14		.byte 1, 22, 1, 52, 2, 21, 3, 20, 1, 21, 10, 0, 2, 20, 2, 21
+>110738	01 15 0a 00 02 14 02 15
+>110740	02 16 02 17 04 16 02 17		.byte 2, 22, 2, 23, 4, 22, 2, 23, 2, 22, 2, 21, 2, 20, 14, 0
+>110748	02 16 02 15 02 14 0e 00
+>110750	02 15 02 16 02 17 01 16		.byte 2, 21, 2, 22, 2, 23, 1, 22, 2, 23, 1, 22, 2, 23, 2, 22
+>110758	02 17 01 16 02 17 02 16
+>110760	02 15 12 00 02 16 02 17		.byte 2, 21, 18, 0, 2, 22, 2, 23, 1, 22, 2, 23, 1, 22, 2, 23
+>110768	01 16 02 17 01 16 02 17
+>110770	02 16 16 00 08 15 18 00		.byte 2, 22, 22, 0, 8, 21, 24, 0, 8, 21, 24, 0, 1, 43, 1, 41
+>110778	08 15 18 00 01 2b 01 29
+>110780	01 2b 02 00 01 2b 01 29		.byte 1, 43, 2, 0, 1, 43, 1, 41, 1, 43, 25, 0, 1, 43, 4, 0
+>110788	01 2b 19 00 01 2b 04 00
+>110790	01 2b 5a 00 01 17 04 00		.byte 1, 43, 90, 0, 1, 23, 4, 0, 1, 23, 26, 0, 1, 23, 3, 0
+>110798	01 17 1a 00 01 17 03 00
+>1107a0	01 34 01 17 19 00 02 17		.byte 1, 52, 1, 23, 25, 0, 2, 23, 1, 52, 1, 0, 1, 52, 1, 0
+>1107a8	01 34 01 00 01 34 01 00
+>1107b0	02 17 17 00 01 28 02 17		.byte 2, 23, 23, 0, 1, 40, 2, 23, 1, 0, 1, 52, 2, 0, 2, 23
+>1107b8	01 00 01 34 02 00 02 17
+>1107c0	01 30 16 00 01 16 02 17		.byte 1, 48, 22, 0, 1, 22, 2, 23, 4, 0, 2, 23, 1, 22, 22, 0
+>1107c8	04 00 02 17 01 16 16 00
+>1107d0	01 16 02 17 04 00 02 17		.byte 1, 22, 2, 23, 4, 0, 2, 23, 1, 22, 21, 0, 2, 22, 2, 23
+>1107d8	01 16 15 00 02 16 02 17
+>1107e0	04 00 02 17 02 16 14 00		.byte 4, 0, 2, 23, 2, 22, 20, 0, 2, 22, 2, 23, 1, 22, 2, 0
+>1107e8	02 16 02 17 01 16 02 00
+>1107f0	01 16 02 17 02 16 13 00		.byte 1, 22, 2, 23, 2, 22, 19, 0, 1, 21, 2, 22, 1, 54, 1, 23
+>1107f8	01 15 02 16 01 36 01 17
+>110800	01 16 02 17 01 16 01 17		.byte 1, 22, 2, 23, 1, 22, 1, 23, 1, 54, 2, 22, 1, 21, 18, 0
+>110808	01 36 02 16 01 15 12 00
+>110810	01 15 02 16 01 36 01 17		.byte 1, 21, 2, 22, 1, 54, 1, 23, 1, 22, 2, 23, 1, 22, 1, 23
+>110818	01 16 02 17 01 16 01 17
+>110820	01 36 02 16 01 15 11 00		.byte 1, 54, 2, 22, 1, 21, 17, 0, 2, 21, 2, 22, 1, 54, 1, 23
+>110828	02 15 02 16 01 36 01 17
+>110830	01 16 02 17 01 16 01 17		.byte 1, 22, 2, 23, 1, 22, 1, 23, 1, 54, 2, 22, 2, 21, 16, 0
+>110838	01 36 02 16 02 15 10 00
+>110840	02 15 02 16 01 37 01 17		.byte 2, 21, 2, 22, 1, 55, 1, 23, 1, 22, 2, 100, 1, 22, 1, 23
+>110848	01 16 02 64 01 16 01 17
+>110850	01 37 02 16 02 15 0f 00		.byte 1, 55, 2, 22, 2, 21, 15, 0, 1, 20, 2, 21, 1, 22, 1, 55
+>110858	01 14 02 15 01 16 01 37
+>110860	02 17 01 65 02 64 01 65		.byte 2, 23, 1, 101, 2, 100, 1, 101, 2, 23, 1, 55, 1, 22, 2, 21
+>110868	02 17 01 37 01 16 02 15
+>110870	01 14 0e 00 01 14 02 15		.byte 1, 20, 14, 0, 1, 20, 2, 21, 1, 55, 1, 22, 2, 23, 1, 101
+>110878	01 37 01 16 02 17 01 65
+>110880	02 64 01 65 02 17 01 16		.byte 2, 100, 1, 101, 2, 23, 1, 22, 1, 55, 2, 21, 1, 20, 13, 0
+>110888	01 37 02 15 01 14 0d 00
+>110890	02 14 02 15 01 20 01 16		.byte 2, 20, 2, 21, 1, 32, 1, 22, 1, 23, 1, 102, 1, 101, 2, 100
+>110898	01 17 01 66 01 65 02 64
+>1108a0	01 65 01 66 01 17 01 16		.byte 1, 101, 1, 102, 1, 23, 1, 22, 1, 32, 2, 21, 2, 20, 12, 0
+>1108a8	01 20 02 15 02 14 0c 00
+>1108b0	02 14 02 15 01 20 01 16		.byte 2, 20, 2, 21, 1, 32, 1, 22, 1, 23, 1, 102, 1, 101, 2, 100
+>1108b8	01 17 01 66 01 65 02 64
+>1108c0	01 65 01 66 01 17 01 16		.byte 1, 101, 1, 102, 1, 23, 1, 22, 1, 32, 2, 21, 2, 20, 11, 0
+>1108c8	01 20 02 15 02 14 0b 00
+>1108d0	03 14 02 15 01 20 01 16		.byte 3, 20, 2, 21, 1, 32, 1, 22, 1, 23, 1, 102, 1, 101, 2, 100
+>1108d8	01 17 01 66 01 65 02 64
+>1108e0	01 65 01 66 01 17 01 16		.byte 1, 101, 1, 102, 1, 23, 1, 22, 1, 32, 2, 21, 3, 20, 9, 0
+>1108e8	01 20 02 15 03 14 09 00
+>1108f0	01 28 03 14 02 15 01 34		.byte 1, 40, 3, 20, 2, 21, 1, 52, 1, 22, 1, 23, 1, 102, 1, 101
+>1108f8	01 16 01 17 01 66 01 65
+>110900	02 64 01 65 01 66 01 17		.byte 2, 100, 1, 101, 1, 102, 1, 23, 1, 22, 1, 52, 2, 21, 3, 20
+>110908	01 16 01 34 02 15 03 14
+>110910	01 30 08 00 01 15 03 14		.byte 1, 48, 8, 0, 1, 21, 3, 20, 2, 21, 1, 52, 1, 22, 1, 23
+>110918	02 15 01 34 01 16 01 17
+>110920	01 66 01 65 02 64 01 65		.byte 1, 102, 1, 101, 2, 100, 1, 101, 1, 102, 1, 23, 1, 22, 1, 52
+>110928	01 66 01 17 01 16 01 34
+>110930	02 15 03 14 01 15 08 00		.byte 2, 21, 3, 20, 1, 21, 8, 0, 1, 21, 3, 20, 2, 21, 1, 52
+>110938	01 15 03 14 02 15 01 34
+>110940	01 16 01 17 01 66 01 65		.byte 1, 22, 1, 23, 1, 102, 1, 101, 2, 100, 1, 101, 1, 102, 1, 23
+>110948	02 64 01 65 01 66 01 17
+>110950	01 16 01 34 02 15 03 14		.byte 1, 22, 1, 52, 2, 21, 3, 20, 1, 21, 7, 0, 1, 23, 1, 21
+>110958	01 15 07 00 01 17 01 15
+>110960	03 14 02 15 01 35 01 16		.byte 3, 20, 2, 21, 1, 53, 1, 22, 1, 23, 1, 102, 1, 101, 2, 100
+>110968	01 17 01 66 01 65 02 64
+>110970	01 65 01 66 01 17 01 16		.byte 1, 101, 1, 102, 1, 23, 1, 22, 1, 53, 2, 21, 3, 20, 1, 21
+>110978	01 35 02 15 03 14 01 15
+>110980	01 17 06 00 01 17 01 15		.byte 1, 23, 6, 0, 1, 23, 1, 21, 3, 20, 2, 21, 1, 53, 1, 22
+>110988	03 14 02 15 01 35 01 16
+>110990	01 17 01 66 01 65 02 64		.byte 1, 23, 1, 102, 1, 101, 2, 100, 1, 101, 1, 102, 1, 23, 1, 22
+>110998	01 65 01 66 01 17 01 16
+>1109a0	01 35 02 15 03 14 01 15		.byte 1, 53, 2, 21, 3, 20, 1, 21, 1, 23, 7, 0, 1, 21, 3, 20
+>1109a8	01 17 07 00 01 15 03 14
+>1109b0	02 15 01 35 01 16 01 17		.byte 2, 21, 1, 53, 1, 22, 1, 23, 1, 20, 4, 22, 1, 20, 1, 23
+>1109b8	01 14 04 16 01 14 01 17
+>1109c0	01 16 01 35 02 15 03 14		.byte 1, 22, 1, 53, 2, 21, 3, 20, 1, 21, 10, 0, 2, 20, 2, 21
+>1109c8	01 15 0a 00 02 14 02 15
+>1109d0	02 16 02 17 04 16 02 17		.byte 2, 22, 2, 23, 4, 22, 2, 23, 2, 22, 2, 21, 2, 20, 14, 0
+>1109d8	02 16 02 15 02 14 0e 00
+>1109e0	02 15 02 16 02 17 01 16		.byte 2, 21, 2, 22, 2, 23, 1, 22, 2, 23, 1, 22, 2, 23, 2, 22
+>1109e8	02 17 01 16 02 17 02 16
+>1109f0	02 15 12 00 02 16 02 17		.byte 2, 21, 18, 0, 2, 22, 2, 23, 1, 22, 2, 23, 1, 22, 2, 23
+>1109f8	01 16 02 17 01 16 02 17
+>110a00	02 16 16 00 08 15 18 00		.byte 2, 22, 22, 0, 8, 21, 24, 0, 8, 21, 24, 0, 1, 43, 1, 41
+>110a08	08 15 18 00 01 2b 01 29
+>110a10	01 2b 02 00 01 2b 01 29		.byte 1, 43, 2, 0, 1, 43, 1, 41, 1, 43, 25, 0, 1, 43, 4, 0
+>110a18	01 2b 19 00 01 2b 04 00
+>110a20	01 2b 5a 00 01 17 01 34		.byte 1, 43, 90, 0, 1, 23, 1, 52, 3, 0, 1, 23, 26, 0, 1, 23
+>110a28	03 00 01 17 1a 00 01 17
+>110a30	01 00 01 34 01 00 01 34		.byte 1, 0, 1, 52, 1, 0, 1, 52, 1, 23, 25, 0, 2, 23, 2, 0
+>110a38	01 17 19 00 02 17 02 00
+>110a40	01 34 01 00 02 17 17 00		.byte 1, 52, 1, 0, 2, 23, 23, 0, 1, 40, 2, 23, 4, 0, 2, 23
+>110a48	01 28 02 17 04 00 02 17
+>110a50	01 30 16 00 01 16 02 17		.byte 1, 48, 22, 0, 1, 22, 2, 23, 4, 0, 2, 23, 1, 22, 22, 0
+>110a58	04 00 02 17 01 16 16 00
+>110a60	01 16 02 17 04 00 02 17		.byte 1, 22, 2, 23, 4, 0, 2, 23, 1, 22, 21, 0, 2, 22, 2, 23
+>110a68	01 16 15 00 02 16 02 17
+>110a70	04 00 02 17 02 16 14 00		.byte 4, 0, 2, 23, 2, 22, 20, 0, 2, 22, 2, 23, 1, 22, 2, 0
+>110a78	02 16 02 17 01 16 02 00
+>110a80	01 16 02 17 02 16 13 00		.byte 1, 22, 2, 23, 2, 22, 19, 0, 1, 21, 2, 22, 1, 55, 1, 23
+>110a88	01 15 02 16 01 37 01 17
+>110a90	01 16 02 17 01 16 01 17		.byte 1, 22, 2, 23, 1, 22, 1, 23, 1, 55, 2, 22, 1, 21, 18, 0
+>110a98	01 37 02 16 01 15 12 00
+>110aa0	01 15 02 16 01 37 01 17		.byte 1, 21, 2, 22, 1, 55, 1, 23, 1, 22, 2, 23, 1, 22, 1, 23
+>110aa8	01 16 02 17 01 16 01 17
+>110ab0	01 37 02 16 01 15 11 00		.byte 1, 55, 2, 22, 1, 21, 17, 0, 2, 21, 2, 22, 1, 55, 1, 23
+>110ab8	02 15 02 16 01 37 01 17
+>110ac0	01 16 02 17 01 16 01 17		.byte 1, 22, 2, 23, 1, 22, 1, 23, 1, 55, 2, 22, 2, 21, 16, 0
+>110ac8	01 37 02 16 02 15 10 00
+>110ad0	02 15 02 16 01 20 01 17		.byte 2, 21, 2, 22, 1, 32, 1, 23, 1, 22, 2, 100, 1, 22, 1, 23
+>110ad8	01 16 02 64 01 16 01 17
+>110ae0	01 20 02 16 02 15 0f 00		.byte 1, 32, 2, 22, 2, 21, 15, 0, 1, 20, 2, 21, 1, 22, 1, 32
+>110ae8	01 14 02 15 01 16 01 20
+>110af0	02 17 01 65 02 64 01 65		.byte 2, 23, 1, 101, 2, 100, 1, 101, 2, 23, 1, 32, 1, 22, 2, 21
+>110af8	02 17 01 20 01 16 02 15
+>110b00	01 14 0e 00 01 14 02 15		.byte 1, 20, 14, 0, 1, 20, 2, 21, 1, 32, 1, 22, 2, 23, 1, 101
+>110b08	01 20 01 16 02 17 01 65
+>110b10	02 64 01 65 02 17 01 16		.byte 2, 100, 1, 101, 2, 23, 1, 22, 1, 32, 2, 21, 1, 20, 13, 0
+>110b18	01 20 02 15 01 14 0d 00
+>110b20	02 14 02 15 01 34 01 16		.byte 2, 20, 2, 21, 1, 52, 1, 22, 1, 23, 1, 102, 1, 101, 2, 100
+>110b28	01 17 01 66 01 65 02 64
+>110b30	01 65 01 66 01 17 01 16		.byte 1, 101, 1, 102, 1, 23, 1, 22, 1, 52, 2, 21, 2, 20, 12, 0
+>110b38	01 34 02 15 02 14 0c 00
+>110b40	02 14 02 15 01 34 01 16		.byte 2, 20, 2, 21, 1, 52, 1, 22, 1, 23, 1, 102, 1, 101, 2, 100
+>110b48	01 17 01 66 01 65 02 64
+>110b50	01 65 01 66 01 17 01 16		.byte 1, 101, 1, 102, 1, 23, 1, 22, 1, 52, 2, 21, 2, 20, 11, 0
+>110b58	01 34 02 15 02 14 0b 00
+>110b60	03 14 02 15 01 34 01 16		.byte 3, 20, 2, 21, 1, 52, 1, 22, 1, 23, 1, 102, 1, 101, 2, 100
+>110b68	01 17 01 66 01 65 02 64
+>110b70	01 65 01 66 01 17 01 16		.byte 1, 101, 1, 102, 1, 23, 1, 22, 1, 52, 2, 21, 3, 20, 9, 0
+>110b78	01 34 02 15 03 14 09 00
+>110b80	01 28 03 14 02 15 01 35		.byte 1, 40, 3, 20, 2, 21, 1, 53, 1, 22, 1, 23, 1, 102, 1, 101
+>110b88	01 16 01 17 01 66 01 65
+>110b90	02 64 01 65 01 66 01 17		.byte 2, 100, 1, 101, 1, 102, 1, 23, 1, 22, 1, 53, 2, 21, 3, 20
+>110b98	01 16 01 35 02 15 03 14
+>110ba0	01 30 08 00 01 15 03 14		.byte 1, 48, 8, 0, 1, 21, 3, 20, 2, 21, 1, 53, 1, 22, 1, 23
+>110ba8	02 15 01 35 01 16 01 17
+>110bb0	01 66 01 65 02 64 01 65		.byte 1, 102, 1, 101, 2, 100, 1, 101, 1, 102, 1, 23, 1, 22, 1, 53
+>110bb8	01 66 01 17 01 16 01 35
+>110bc0	02 15 03 14 01 15 08 00		.byte 2, 21, 3, 20, 1, 21, 8, 0, 1, 21, 3, 20, 2, 21, 1, 53
+>110bc8	01 15 03 14 02 15 01 35
+>110bd0	01 16 01 17 01 66 01 65		.byte 1, 22, 1, 23, 1, 102, 1, 101, 2, 100, 1, 101, 1, 102, 1, 23
+>110bd8	02 64 01 65 01 66 01 17
+>110be0	01 16 01 35 02 15 03 14		.byte 1, 22, 1, 53, 2, 21, 3, 20, 1, 21, 7, 0, 1, 23, 1, 21
+>110be8	01 15 07 00 01 17 01 15
+>110bf0	03 14 02 15 01 36 01 16		.byte 3, 20, 2, 21, 1, 54, 1, 22, 1, 23, 1, 102, 1, 101, 2, 100
+>110bf8	01 17 01 66 01 65 02 64
+>110c00	01 65 01 66 01 17 01 16		.byte 1, 101, 1, 102, 1, 23, 1, 22, 1, 54, 2, 21, 3, 20, 1, 21
+>110c08	01 36 02 15 03 14 01 15
+>110c10	01 17 06 00 01 17 01 15		.byte 1, 23, 6, 0, 1, 23, 1, 21, 3, 20, 2, 21, 1, 54, 1, 22
+>110c18	03 14 02 15 01 36 01 16
+>110c20	01 17 01 66 01 65 02 64		.byte 1, 23, 1, 102, 1, 101, 2, 100, 1, 101, 1, 102, 1, 23, 1, 22
+>110c28	01 65 01 66 01 17 01 16
+>110c30	01 36 02 15 03 14 01 15		.byte 1, 54, 2, 21, 3, 20, 1, 21, 1, 23, 7, 0, 1, 21, 3, 20
+>110c38	01 17 07 00 01 15 03 14
+>110c40	02 15 01 36 01 16 01 17		.byte 2, 21, 1, 54, 1, 22, 1, 23, 1, 20, 4, 22, 1, 20, 1, 23
+>110c48	01 14 04 16 01 14 01 17
+>110c50	01 16 01 36 02 15 03 14		.byte 1, 22, 1, 54, 2, 21, 3, 20, 1, 21, 10, 0, 2, 20, 2, 21
+>110c58	01 15 0a 00 02 14 02 15
+>110c60	02 16 02 17 04 16 02 17		.byte 2, 22, 2, 23, 4, 22, 2, 23, 2, 22, 2, 21, 2, 20, 14, 0
+>110c68	02 16 02 15 02 14 0e 00
+>110c70	02 15 02 16 02 17 01 16		.byte 2, 21, 2, 22, 2, 23, 1, 22, 2, 23, 1, 22, 2, 23, 2, 22
+>110c78	02 17 01 16 02 17 02 16
+>110c80	02 15 12 00 02 16 02 17		.byte 2, 21, 18, 0, 2, 22, 2, 23, 1, 22, 2, 23, 1, 22, 2, 23
+>110c88	01 16 02 17 01 16 02 17
+>110c90	02 16 16 00 08 15 18 00		.byte 2, 22, 22, 0, 8, 21, 24, 0, 8, 21, 24, 0, 1, 43, 1, 41
+>110c98	08 15 18 00 01 2b 01 29
+>110ca0	01 2b 02 00 01 2b 01 29		.byte 1, 43, 2, 0, 1, 43, 1, 41, 1, 43, 25, 0, 1, 43, 4, 0
+>110ca8	01 2b 19 00 01 2b 04 00
+>110cb0	01 2b 5a 00 01 17 01 00		.byte 1, 43, 90, 0, 1, 23, 1, 0, 1, 52, 2, 0, 1, 23, 26, 0
+>110cb8	01 34 02 00 01 17 1a 00
+>110cc0	01 17 01 34 01 00 01 34		.byte 1, 23, 1, 52, 1, 0, 1, 52, 1, 0, 1, 23, 25, 0, 2, 23
+>110cc8	01 00 01 17 19 00 02 17
+>110cd0	03 00 01 34 02 17 17 00		.byte 3, 0, 1, 52, 2, 23, 23, 0, 1, 40, 2, 23, 4, 0, 2, 23
+>110cd8	01 28 02 17 04 00 02 17
+>110ce0	01 30 16 00 01 16 02 17		.byte 1, 48, 22, 0, 1, 22, 2, 23, 4, 0, 2, 23, 1, 22, 22, 0
+>110ce8	04 00 02 17 01 16 16 00
+>110cf0	01 16 02 17 04 00 02 17		.byte 1, 22, 2, 23, 4, 0, 2, 23, 1, 22, 21, 0, 2, 22, 2, 23
+>110cf8	01 16 15 00 02 16 02 17
+>110d00	04 00 02 17 02 16 14 00		.byte 4, 0, 2, 23, 2, 22, 20, 0, 2, 22, 2, 23, 1, 22, 2, 0
+>110d08	02 16 02 17 01 16 02 00
+>110d10	01 16 02 17 02 16 13 00		.byte 1, 22, 2, 23, 2, 22, 19, 0, 1, 21, 2, 22, 1, 32, 1, 23
+>110d18	01 15 02 16 01 20 01 17
+>110d20	01 16 02 17 01 16 01 17		.byte 1, 22, 2, 23, 1, 22, 1, 23, 1, 32, 2, 22, 1, 21, 18, 0
+>110d28	01 20 02 16 01 15 12 00
+>110d30	01 15 02 16 01 20 01 17		.byte 1, 21, 2, 22, 1, 32, 1, 23, 1, 22, 2, 23, 1, 22, 1, 23
+>110d38	01 16 02 17 01 16 01 17
+>110d40	01 20 02 16 01 15 11 00		.byte 1, 32, 2, 22, 1, 21, 17, 0, 2, 21, 2, 22, 1, 32, 1, 23
+>110d48	02 15 02 16 01 20 01 17
+>110d50	01 16 02 17 01 16 01 17		.byte 1, 22, 2, 23, 1, 22, 1, 23, 1, 32, 2, 22, 2, 21, 16, 0
+>110d58	01 20 02 16 02 15 10 00
+>110d60	02 15 02 16 01 34 01 17		.byte 2, 21, 2, 22, 1, 52, 1, 23, 1, 22, 2, 100, 1, 22, 1, 23
+>110d68	01 16 02 64 01 16 01 17
+>110d70	01 34 02 16 02 15 0f 00		.byte 1, 52, 2, 22, 2, 21, 15, 0, 1, 20, 2, 21, 1, 22, 1, 52
+>110d78	01 14 02 15 01 16 01 34
+>110d80	02 17 01 65 02 64 01 65		.byte 2, 23, 1, 101, 2, 100, 1, 101, 2, 23, 1, 52, 1, 22, 2, 21
+>110d88	02 17 01 34 01 16 02 15
+>110d90	01 14 0e 00 01 14 02 15		.byte 1, 20, 14, 0, 1, 20, 2, 21, 1, 52, 1, 22, 2, 23, 1, 101
+>110d98	01 34 01 16 02 17 01 65
+>110da0	02 64 01 65 02 17 01 16		.byte 2, 100, 1, 101, 2, 23, 1, 22, 1, 52, 2, 21, 1, 20, 13, 0
+>110da8	01 34 02 15 01 14 0d 00
+>110db0	02 14 02 15 01 35 01 16		.byte 2, 20, 2, 21, 1, 53, 1, 22, 1, 23, 1, 102, 1, 101, 2, 100
+>110db8	01 17 01 66 01 65 02 64
+>110dc0	01 65 01 66 01 17 01 16		.byte 1, 101, 1, 102, 1, 23, 1, 22, 1, 53, 2, 21, 2, 20, 12, 0
+>110dc8	01 35 02 15 02 14 0c 00
+>110dd0	02 14 02 15 01 35 01 16		.byte 2, 20, 2, 21, 1, 53, 1, 22, 1, 23, 1, 102, 1, 101, 2, 100
+>110dd8	01 17 01 66 01 65 02 64
+>110de0	01 65 01 66 01 17 01 16		.byte 1, 101, 1, 102, 1, 23, 1, 22, 1, 53, 2, 21, 2, 20, 11, 0
+>110de8	01 35 02 15 02 14 0b 00
+>110df0	03 14 02 15 01 35 01 16		.byte 3, 20, 2, 21, 1, 53, 1, 22, 1, 23, 1, 102, 1, 101, 2, 100
+>110df8	01 17 01 66 01 65 02 64
+>110e00	01 65 01 66 01 17 01 16		.byte 1, 101, 1, 102, 1, 23, 1, 22, 1, 53, 2, 21, 3, 20, 9, 0
+>110e08	01 35 02 15 03 14 09 00
+>110e10	01 28 03 14 02 15 01 36		.byte 1, 40, 3, 20, 2, 21, 1, 54, 1, 22, 1, 23, 1, 102, 1, 101
+>110e18	01 16 01 17 01 66 01 65
+>110e20	02 64 01 65 01 66 01 17		.byte 2, 100, 1, 101, 1, 102, 1, 23, 1, 22, 1, 54, 2, 21, 3, 20
+>110e28	01 16 01 36 02 15 03 14
+>110e30	01 30 08 00 01 15 03 14		.byte 1, 48, 8, 0, 1, 21, 3, 20, 2, 21, 1, 54, 1, 22, 1, 23
+>110e38	02 15 01 36 01 16 01 17
+>110e40	01 66 01 65 02 64 01 65		.byte 1, 102, 1, 101, 2, 100, 1, 101, 1, 102, 1, 23, 1, 22, 1, 54
+>110e48	01 66 01 17 01 16 01 36
+>110e50	02 15 03 14 01 15 08 00		.byte 2, 21, 3, 20, 1, 21, 8, 0, 1, 21, 3, 20, 2, 21, 1, 54
+>110e58	01 15 03 14 02 15 01 36
+>110e60	01 16 01 17 01 66 01 65		.byte 1, 22, 1, 23, 1, 102, 1, 101, 2, 100, 1, 101, 1, 102, 1, 23
+>110e68	02 64 01 65 01 66 01 17
+>110e70	01 16 01 36 02 15 03 14		.byte 1, 22, 1, 54, 2, 21, 3, 20, 1, 21, 7, 0, 1, 23, 1, 21
+>110e78	01 15 07 00 01 17 01 15
+>110e80	03 14 02 15 01 37 01 16		.byte 3, 20, 2, 21, 1, 55, 1, 22, 1, 23, 1, 102, 1, 101, 2, 100
+>110e88	01 17 01 66 01 65 02 64
+>110e90	01 65 01 66 01 17 01 16		.byte 1, 101, 1, 102, 1, 23, 1, 22, 1, 55, 2, 21, 3, 20, 1, 21
+>110e98	01 37 02 15 03 14 01 15
+>110ea0	01 17 06 00 01 17 01 15		.byte 1, 23, 6, 0, 1, 23, 1, 21, 3, 20, 2, 21, 1, 55, 1, 22
+>110ea8	03 14 02 15 01 37 01 16
+>110eb0	01 17 01 66 01 65 02 64		.byte 1, 23, 1, 102, 1, 101, 2, 100, 1, 101, 1, 102, 1, 23, 1, 22
+>110eb8	01 65 01 66 01 17 01 16
+>110ec0	01 37 02 15 03 14 01 15		.byte 1, 55, 2, 21, 3, 20, 1, 21, 1, 23, 7, 0, 1, 21, 3, 20
+>110ec8	01 17 07 00 01 15 03 14
+>110ed0	02 15 01 37 01 16 01 17		.byte 2, 21, 1, 55, 1, 22, 1, 23, 1, 20, 4, 22, 1, 20, 1, 23
+>110ed8	01 14 04 16 01 14 01 17
+>110ee0	01 16 01 37 02 15 03 14		.byte 1, 22, 1, 55, 2, 21, 3, 20, 1, 21, 10, 0, 2, 20, 2, 21
+>110ee8	01 15 0a 00 02 14 02 15
+>110ef0	02 16 02 17 04 16 02 17		.byte 2, 22, 2, 23, 4, 22, 2, 23, 2, 22, 2, 21, 2, 20, 14, 0
+>110ef8	02 16 02 15 02 14 0e 00
+>110f00	02 15 02 16 02 17 01 16		.byte 2, 21, 2, 22, 2, 23, 1, 22, 2, 23, 1, 22, 2, 23, 2, 22
+>110f08	02 17 01 16 02 17 02 16
+>110f10	02 15 12 00 02 16 02 17		.byte 2, 21, 18, 0, 2, 22, 2, 23, 1, 22, 2, 23, 1, 22, 2, 23
+>110f18	01 16 02 17 01 16 02 17
+>110f20	02 16 16 00 08 15 18 00		.byte 2, 22, 22, 0, 8, 21, 24, 0, 8, 21, 24, 0, 1, 43, 1, 41
+>110f28	08 15 18 00 01 2b 01 29
+>110f30	01 2b 02 00 01 2b 01 29		.byte 1, 43, 2, 0, 1, 43, 1, 41, 1, 43, 25, 0, 1, 43, 4, 0
+>110f38	01 2b 19 00 01 2b 04 00
+>110f40	01 2b 0d 00			.byte 1, 43, 13, 0
+>110f44	00 00				.byte 0, 0
+
+;******  Return to file: src\spaceship.s
+
+
+;******  Processing file: src\rsrc/startiles.s
+
+=$110f46				STARS_START = *
+>110f46	ff 00 73 00 01 0f ff 00		.byte 255, 0, 115, 0, 1, 15, 255, 0, 28, 0, 1, 15, 157, 0, 1, 68
+>110f4e	1c 00 01 0f 9d 00 01 44
+>110f56	19 00 01 4c 0e 00 01 0f		.byte 25, 0, 1, 76, 14, 0, 1, 15, 21, 0, 1, 76, 255, 0, 255, 0
+>110f5e	15 00 01 4c ff 00 ff 00
+>110f66	4c 00 01 70 01 27 01 70		.byte 76, 0, 1, 112, 1, 39, 1, 112, 30, 0, 1, 106, 1, 34, 1, 106
+>110f6e	1e 00 01 6a 01 22 01 6a
+>110f76	bc 00 01 1b 01 0f 01 1b		.byte 188, 0, 1, 27, 1, 15, 1, 27, 13, 0, 1, 148, 1, 76, 1, 148
+>110f7e	0d 00 01 94 01 4c 01 94
+>110f86	0d 00 03 27 1e 00 03 22		.byte 13, 0, 3, 39, 30, 0, 3, 34, 29, 0, 1, 118, 1, 46, 1, 118
+>110f8e	1d 00 01 76 01 2e 01 76
+>110f96	19 00 01 0f 82 00 03 0f		.byte 25, 0, 1, 15, 130, 0, 3, 15, 13, 0, 3, 76, 13, 0, 1, 112
+>110f9e	0d 00 03 4c 0d 00 01 70
+>110fa6	01 27 01 70 0e 00 01 8c		.byte 1, 39, 1, 112, 14, 0, 1, 140, 1, 68, 1, 140, 13, 0, 1, 106
+>110fae	01 44 01 8c 0d 00 01 6a
+>110fb6	01 22 01 6a 1d 00 03 2e		.byte 1, 34, 1, 106, 29, 0, 3, 46, 156, 0, 1, 27, 1, 15, 1, 27
+>110fbe	9c 00 01 1b 01 0f 01 1b
+>110fc6	0d 00 01 94 01 4c 01 94		.byte 13, 0, 1, 148, 1, 76, 1, 148, 30, 0, 3, 68, 45, 0, 1, 118
+>110fce	1e 00 03 44 2d 00 01 76
+>110fd6	01 2e 01 76 cd 00 01 8c		.byte 1, 46, 1, 118, 205, 0, 1, 140, 1, 68, 1, 140, 30, 0, 1, 108
+>110fde	01 44 01 8c 1e 00 01 6c
+>110fe6	01 3c 01 6c fd 00 03 3c		.byte 1, 60, 1, 108, 253, 0, 3, 60, 253, 0, 1, 108, 1, 60, 1, 108
+>110fee	fd 00 01 6c 01 3c 01 6c
+>110ff6	4a 00 01 27 24 00 01 0f		.byte 74, 0, 1, 39, 36, 0, 1, 15, 8, 0, 1, 15, 24, 0, 1, 39
+>110ffe	08 00 01 0f 18 00 01 27
+>111006	ff 00 0b 00 01 44 ff 00		.byte 255, 0, 11, 0, 1, 68, 255, 0, 255, 0, 255, 0, 129, 0, 4, 91
+>11100e	ff 00 ff 00 81 00 04 5b
+>111016	13 00 02 1f e5 00 08 5d		.byte 19, 0, 2, 31, 229, 0, 8, 93, 15, 0, 2, 31, 1, 0, 1, 31
+>11101e	0f 00 02 1f 01 00 01 1f
+>111026	e4 00 0a 5d 09 00 02 38		.byte 228, 0, 10, 93, 9, 0, 2, 56, 1, 55, 1, 54, 1, 31, 3, 0
+>11102e	01 37 01 36 01 1f 03 00
+>111036	01 1f e3 00 0c 2a 07 00		.byte 1, 31, 227, 0, 12, 42, 7, 0, 2, 56, 1, 55, 2, 54, 1, 78
+>11103e	02 38 01 37 02 36 01 4e
+>111046	02 00 01 1f e4 00 0c 2a		.byte 2, 0, 1, 31, 228, 0, 12, 42, 6, 0, 2, 56, 1, 55, 2, 54
+>11104e	06 00 02 38 01 37 02 36
+>111056	02 4e 01 36 01 00 01 1f		.byte 2, 78, 1, 54, 1, 0, 1, 31, 227, 0, 14, 43, 4, 0, 2, 56
+>11105e	e3 00 0e 2b 04 00 02 38
+>111066	01 37 02 36 02 4e 02 36		.byte 1, 55, 2, 54, 2, 78, 2, 54, 1, 55, 1, 31, 227, 0, 2, 43
+>11106e	01 37 01 1f e3 00 02 2b
+>111076	01 2a 01 28 01 2a 09 2b		.byte 1, 42, 1, 40, 1, 42, 9, 43, 4, 0, 1, 56, 1, 55, 2, 54
+>11107e	04 00 01 38 01 37 02 36
+>111086	02 4e 02 36 01 37 01 1f		.byte 2, 78, 2, 54, 1, 55, 1, 31, 228, 0, 1, 91, 5, 40, 8, 91
+>11108e	e4 00 01 5b 05 28 08 5b
+>111096	04 00 01 37 02 36 02 4e		.byte 4, 0, 1, 55, 2, 54, 2, 78, 2, 54, 2, 55, 1, 31, 228, 0
+>11109e	02 36 02 37 01 1f e4 00
+>1110a6	01 5b 05 28 08 5b 04 00		.byte 1, 91, 5, 40, 8, 91, 4, 0, 2, 54, 2, 78, 2, 54, 2, 55
+>1110ae	02 36 02 4e 02 36 02 37
+>1110b6	01 1f 01 38 e5 00 01 2b		.byte 1, 31, 1, 56, 229, 0, 1, 43, 1, 42, 1, 40, 1, 42, 8, 43
+>1110be	01 2a 01 28 01 2a 08 2b
+>1110c6	05 00 01 1f 02 4e 02 36		.byte 5, 0, 1, 31, 2, 78, 2, 54, 2, 55, 1, 31, 1, 56, 230, 0
+>1110ce	02 37 01 1f 01 38 e6 00
+>1110d6	0c 2b 04 00 01 1f 02 00		.byte 12, 43, 4, 0, 1, 31, 2, 0, 2, 54, 2, 55, 1, 31, 1, 56
+>1110de	02 36 02 37 01 1f 01 38
+>1110e6	e8 00 0a 2a 05 00 01 1f		.byte 232, 0, 10, 42, 5, 0, 1, 31, 3, 0, 1, 55, 2, 31, 1, 56
+>1110ee	03 00 01 37 02 1f 01 38
+>1110f6	ea 00 08 2a 05 00 01 1f		.byte 234, 0, 8, 42, 5, 0, 1, 31, 2, 0, 3, 31, 239, 0, 4, 91
+>1110fe	02 00 03 1f ef 00 04 5b
+>111106	07 00 03 1f ff 00 ff 00		.byte 7, 0, 3, 31, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>11110e	ff 00 ff 00 ff 00 ff 00
+>111116	ff 00 ff 00 0c 00 01 58		.byte 255, 0, 255, 0, 12, 0, 1, 88, 254, 0, 1, 88, 1, 40, 1, 88
+>11111e	fe 00 01 58 01 28 01 58
+>111126	f3 00 05 f7 06 00 01 58		.byte 243, 0, 5, 247, 6, 0, 1, 88, 241, 0, 3, 247, 5, 175, 1, 247
+>11112e	f1 00 03 f7 05 af 01 f7
+>111136	1c 00 02 28 d7 00 02 f7		.byte 28, 0, 2, 40, 215, 0, 2, 247, 3, 175, 2, 83, 3, 103, 1, 175
+>11113e	03 af 02 53 03 67 01 af
+>111146	01 f7 1a 00 04 1a d5 00		.byte 1, 247, 26, 0, 4, 26, 213, 0, 1, 247, 2, 175, 3, 83, 5, 175
+>11114e	01 f7 02 af 03 53 05 af
+>111156	01 67 01 af 01 f7 14 00		.byte 1, 103, 1, 175, 1, 247, 20, 0, 14, 27, 208, 0, 1, 175, 2, 83
+>11115e	0e 1b d0 00 01 af 02 53
+>111166	05 af 02 34 01 f7 01 af		.byte 5, 175, 2, 52, 1, 247, 1, 175, 1, 101, 1, 175, 1, 247, 16, 0
+>11116e	01 65 01 af 01 f7 10 00
+>111176	14 1c cd 00 01 53 03 af		.byte 20, 28, 205, 0, 1, 83, 3, 175, 3, 101, 4, 100, 1, 175, 1, 101
+>11117e	03 65 04 64 01 af 01 65
+>111186	01 af 01 f7 01 af 01 53		.byte 1, 175, 1, 247, 1, 175, 1, 83, 1, 175, 1, 247, 10, 0, 24, 29
+>11118e	01 af 01 f7 0a 00 18 1d
+>111196	ca 00 01 f7 02 af 02 67		.byte 202, 0, 1, 247, 2, 175, 2, 103, 2, 175, 6, 100, 1, 101, 1, 175
+>11119e	02 af 06 64 01 65 01 af
+>1111a6	02 f7 01 af 01 53 01 af		.byte 2, 247, 1, 175, 1, 83, 1, 175, 1, 247, 7, 0, 28, 30, 200, 0
+>1111ae	01 f7 07 00 1c 1e c8 00
+>1111b6	01 f7 01 af 01 67 02 af		.byte 1, 247, 1, 175, 1, 103, 2, 175, 1, 247, 3, 100, 1, 43, 4, 100
+>1111be	01 f7 03 64 01 2b 04 64
+>1111c6	01 af 01 f7 01 28 01 af		.byte 1, 175, 1, 247, 1, 40, 1, 175, 1, 83, 1, 175, 1, 247, 6, 0
+>1111ce	01 53 01 af 01 f7 06 00
+>1111d6	02 1f 02 30 02 1f 02 30		.byte 2, 31, 2, 48, 2, 31, 2, 48, 2, 31, 2, 48, 2, 31, 2, 48
+>1111de	02 1f 02 30 02 1f 02 30
+>1111e6	02 1f 02 30 02 1f 02 30		.byte 2, 31, 2, 48, 2, 31, 2, 48, 2, 31, 2, 48, 2, 31, 198, 0
+>1111ee	02 1f 02 30 02 1f c6 00
+>1111f6	01 f7 01 af 01 53 01 af		.byte 1, 247, 1, 175, 1, 83, 1, 175, 2, 247, 1, 175, 4, 100, 1, 43
+>1111fe	02 f7 01 af 04 64 01 2b
+>111206	03 64 01 f7 02 af 01 67		.byte 3, 100, 1, 247, 2, 175, 1, 103, 1, 175, 1, 247, 7, 0, 2, 31
+>11120e	01 af 01 f7 07 00 02 1f
+>111216	02 30 02 1f 02 30 02 1f		.byte 2, 48, 2, 31, 2, 48, 2, 31, 2, 48, 2, 31, 2, 48, 2, 31
+>11121e	02 30 02 1f 02 30 02 1f
+>111226	02 30 02 1f 02 30 02 1f		.byte 2, 48, 2, 31, 2, 48, 2, 31, 2, 48, 2, 31, 198, 0, 1, 247
+>11122e	02 30 02 1f c6 00 01 f7
+>111236	01 af 01 53 01 af 01 28		.byte 1, 175, 1, 83, 1, 175, 1, 40, 1, 247, 1, 175, 1, 101, 6, 100
+>11123e	01 f7 01 af 01 65 06 64
+>111246	02 af 02 67 02 af 01 f7		.byte 2, 175, 2, 103, 2, 175, 1, 247, 8, 0, 28, 30, 200, 0, 1, 247
+>11124e	08 00 1c 1e c8 00 01 f7
+>111256	01 af 01 53 01 af 01 00		.byte 1, 175, 1, 83, 1, 175, 1, 0, 1, 175, 1, 101, 1, 175, 4, 100
+>11125e	01 af 01 65 01 af 04 64
+>111266	03 65 03 af 01 53 0b 00		.byte 3, 101, 3, 175, 1, 83, 11, 0, 24, 29, 207, 0, 1, 175, 1, 101
+>11126e	18 1d cf 00 01 af 01 65
+>111276	01 af 03 f7 05 af 02 53		.byte 1, 175, 3, 247, 5, 175, 2, 83, 1, 175, 13, 0, 20, 28, 209, 0
+>11127e	01 af 0d 00 14 1c d1 00
+>111286	01 f7 01 af 01 67 05 af		.byte 1, 247, 1, 175, 1, 103, 5, 175, 3, 83, 2, 175, 1, 247, 16, 0
+>11128e	03 53 02 af 01 f7 10 00
+>111296	0e 1b d5 00 01 f7 01 af		.byte 14, 27, 213, 0, 1, 247, 1, 175, 3, 103, 2, 83, 3, 175, 2, 247
+>11129e	03 67 02 53 03 af 02 f7
+>1112a6	12 00 02 16 02 00 04 1a		.byte 18, 0, 2, 22, 2, 0, 4, 26, 2, 0, 2, 22, 209, 0, 1, 92
+>1112ae	02 00 02 16 d1 00 01 5c
+>1112b6	05 00 01 f7 05 af 03 f7		.byte 5, 0, 1, 247, 5, 175, 3, 247, 20, 0, 2, 22, 3, 0, 2, 40
+>1112be	14 00 02 16 03 00 02 28
+>1112c6	03 00 02 16 d1 00 01 5c		.byte 3, 0, 2, 22, 209, 0, 1, 92, 6, 0, 5, 247, 22, 0, 2, 22
+>1112ce	06 00 05 f7 16 00 02 16
+>1112d6	0a 00 02 16 cf 00 01 5c		.byte 10, 0, 2, 22, 207, 0, 1, 92, 1, 44, 1, 92, 31, 0, 2, 22
+>1112de	01 2c 01 5c 1f 00 02 16
+>1112e6	0c 00 02 16 cc 00 02 5c		.byte 12, 0, 2, 22, 204, 0, 2, 92, 3, 44, 2, 92, 27, 0, 3, 22
+>1112ee	03 2c 02 5c 1b 00 03 16
+>1112f6	0e 00 03 16 cc 00 01 5c		.byte 14, 0, 3, 22, 204, 0, 1, 92, 1, 44, 1, 92, 26, 0, 4, 22
+>1112fe	01 2c 01 5c 1a 00 04 16
+>111306	12 00 04 16 ca 00 01 5c		.byte 18, 0, 4, 22, 202, 0, 1, 92, 27, 0, 3, 22, 20, 0, 3, 22
+>11130e	1b 00 03 16 14 00 03 16
+>111316	ca 00 01 5c ff 00 ff 00		.byte 202, 0, 1, 92, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>11131e	ff 00 ff 00 ff 00 ff 00
+>111326	ff 00 ff 00 ff 00 ff 00		.byte 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>11132e	ff 00 ff 00 ff 00 ff 00
+>111336	ff 00 ff 00 ff 00 ff 00		.byte 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>11133e	ff 00 ff 00 ff 00 ff 00
+>111346	ff 00 ff 00 ff 00 ff 00		.byte 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>11134e	ff 00 ff 00 ff 00 ff 00
+>111356	ff 00 ff 00 ff 00 ff 00		.byte 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>11135e	ff 00 ff 00 ff 00 ff 00
+>111366	ff 00 ff 00 ff 00 ff 00		.byte 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>11136e	ff 00 ff 00 ff 00 ff 00
+>111376	ff 00 ff 00 ff 00 ff 00		.byte 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>11137e	ff 00 ff 00 ff 00 ff 00
+>111386	ff 00 ff 00 ff 00 ff 00		.byte 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>11138e	ff 00 ff 00 ff 00 ff 00
+>111396	ff 00 ff 00 ff 00 ff 00		.byte 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>11139e	ff 00 ff 00 ff 00 ff 00
+>1113a6	ff 00 ff 00 ff 00 ff 00		.byte 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>1113ae	ff 00 ff 00 ff 00 ff 00
+>1113b6	ff 00 ff 00 ff 00 ff 00		.byte 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>1113be	ff 00 ff 00 ff 00 ff 00
+>1113c6	ff 00 ff 00 ff 00 ff 00		.byte 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>1113ce	ff 00 ff 00 ff 00 ff 00
+>1113d6	ff 00 ff 00 ff 00 ff 00		.byte 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>1113de	ff 00 ff 00 ff 00 ff 00
+>1113e6	ff 00 ff 00 ff 00 ff 00		.byte 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>1113ee	ff 00 ff 00 ff 00 ff 00
+>1113f6	ff 00 ff 00 ff 00 ff 00		.byte 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>1113fe	ff 00 ff 00 ff 00 ff 00
+>111406	ff 00 ff 00 ff 00 ff 00		.byte 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>11140e	ff 00 ff 00 ff 00 ff 00
+>111416	ff 00 ff 00 ff 00 ff 00		.byte 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>11141e	ff 00 ff 00 ff 00 ff 00
+>111426	ff 00 ff 00 ff 00 ff 00		.byte 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>11142e	ff 00 ff 00 ff 00 ff 00
+>111436	ff 00 ff 00 ff 00 ff 00		.byte 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>11143e	ff 00 ff 00 ff 00 ff 00
+>111446	ff 00 ff 00 ff 00 ff 00		.byte 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>11144e	ff 00 ff 00 ff 00 ff 00
+>111456	ff 00 ff 00 ff 00 ff 00		.byte 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>11145e	ff 00 ff 00 ff 00 ff 00
+>111466	ff 00 ff 00 ff 00 ff 00		.byte 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>11146e	ff 00 ff 00 ff 00 ff 00
+>111476	ff 00 ff 00 ff 00 ff 00		.byte 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>11147e	ff 00 ff 00 ff 00 ff 00
+>111486	ff 00 ff 00 ff 00 ff 00		.byte 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0
+>11148e	ff 00 ff 00 ff 00 ff 00
+>111496	ff 00 ff 00 ff 00 ff 00		.byte 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 188, 0
+>11149e	ff 00 ff 00 bc 00
+>1114a4	00 00				.byte 0, 0
+
+;******  Return to file: src\spaceship.s
+
+
+;******  Processing file: src\rsrc/torpedo.s
+
+=$1114a6				TORPEDO_START = *
+>1114a6	4f 00 01 34 1f 00 01 34		.byte 79, 0, 1, 52, 31, 0, 1, 52, 31, 0, 1, 52, 30, 0, 1, 100
+>1114ae	1f 00 01 34 1e 00 01 64
+>1114b6	01 34 1f 00 01 34 1f 00		.byte 1, 52, 31, 0, 1, 52, 31, 0, 1, 52, 24, 0, 1, 92, 6, 0
+>1114be	01 34 18 00 01 5c 06 00
+>1114c6	01 34 19 00 01 5c 05 00		.byte 1, 52, 25, 0, 1, 92, 5, 0, 1, 52, 26, 0, 1, 92, 4, 0
+>1114ce	01 34 1a 00 01 5c 04 00
+>1114d6	01 34 1b 00 01 5c 03 00		.byte 1, 52, 27, 0, 1, 92, 3, 0, 1, 52, 27, 0, 1, 68, 1, 92
+>1114de	01 34 1b 00 01 44 01 5c
+>1114e6	03 00 01 64 1d 00 01 c4		.byte 3, 0, 1, 100, 29, 0, 1, 196, 1, 124, 1, 196, 3, 0, 1, 100
+>1114ee	01 7c 01 c4 03 00 01 64
+>1114f6	18 00 01 c4 01 7c 01 34		.byte 24, 0, 1, 196, 1, 124, 1, 52, 1, 124, 1, 196, 27, 0, 1, 124
+>1114fe	01 7c 01 c4 1b 00 01 7c
+>111506	03 34 01 7c 01 44 1a 00		.byte 3, 52, 1, 124, 1, 68, 26, 0, 1, 196, 1, 124, 1, 52, 1, 124
+>11150e	01 c4 01 7c 01 34 01 7c
+>111516	01 c4 18 00 01 64 03 00		.byte 1, 196, 24, 0, 1, 100, 3, 0, 1, 196, 1, 124, 1, 196, 4, 0
+>11151e	01 c4 01 7c 01 c4 04 00
+>111526	01 64 1f 00 01 64 3a 00		.byte 1, 100, 31, 0, 1, 100, 58, 0, 1, 68, 255, 0, 255, 0, 11, 0
+>11152e	01 44 ff 00 ff 00 0b 00
+>111536	01 34 1e 00 01 34 1e 00		.byte 1, 52, 30, 0, 1, 52, 30, 0, 1, 52, 30, 0, 1, 52, 30, 0
+>11153e	01 34 1e 00 01 34 1e 00
+>111546	01 34 1e 00 01 34 16 00		.byte 1, 52, 30, 0, 1, 52, 22, 0, 1, 100, 7, 0, 1, 52, 19, 0
+>11154e	01 64 07 00 01 34 13 00
+>111556	01 44 0a 00 01 34 05 00		.byte 1, 68, 10, 0, 1, 52, 5, 0, 1, 100, 22, 0, 1, 100, 1, 0
+>11155e	01 64 16 00 01 64 01 00
+>111566	01 34 05 00 01 64 14 00		.byte 1, 52, 5, 0, 1, 100, 20, 0, 1, 68, 1, 196, 1, 124, 1, 196
+>11156e	01 44 01 c4 01 7c 01 c4
+>111576	15 00 01 64 06 00 01 c4		.byte 21, 0, 1, 100, 6, 0, 1, 196, 1, 124, 1, 52, 1, 124, 1, 196
+>11157e	01 7c 01 34 01 7c 01 c4
+>111586	14 00 06 5c 01 00 01 7c		.byte 20, 0, 6, 92, 1, 0, 1, 124, 3, 52, 1, 124, 1, 68, 26, 0
+>11158e	03 34 01 7c 01 44 1a 00
+>111596	01 c4 01 7c 01 34 01 7c		.byte 1, 196, 1, 124, 1, 52, 1, 124, 1, 196, 28, 0, 1, 196, 1, 124
+>11159e	01 c4 1c 00 01 c4 01 7c
+>1115a6	01 c4 19 00 01 44 1d 00		.byte 1, 196, 25, 0, 1, 68, 29, 0, 1, 68, 64, 0, 1, 100, 9, 0
+>1115ae	01 44 40 00 01 64 09 00
+>1115b6	01 44 ff 00 ff 00 9b 00		.byte 1, 68, 255, 0, 255, 0, 155, 0, 1, 68, 65, 0, 1, 68, 30, 0
+>1115be	01 44 41 00 01 44 1e 00
+>1115c6	01 c4 01 7c 01 c4 1c 00		.byte 1, 196, 1, 124, 1, 196, 28, 0, 1, 196, 1, 124, 1, 52, 1, 124
+>1115ce	01 c4 01 7c 01 34 01 7c
+>1115d6	01 c4 1b 00 01 7c 03 34		.byte 1, 196, 27, 0, 1, 124, 3, 52, 1, 124, 1, 0, 11, 52, 15, 0
+>1115de	01 7c 01 00 0b 34 0f 00
+>1115e6	01 c4 01 7c 01 34 01 7c		.byte 1, 196, 1, 124, 1, 52, 1, 124, 1, 196, 28, 0, 1, 196, 1, 124
+>1115ee	01 c4 1c 00 01 c4 01 7c
+>1115f6	01 c4 1b 00 01 5c 1e 00		.byte 1, 196, 27, 0, 1, 92, 30, 0, 1, 92, 5, 0, 1, 68, 1, 0
+>1115fe	01 5c 05 00 01 44 01 00
+>111606	01 64 16 00 01 5c 1e 00		.byte 1, 100, 22, 0, 1, 92, 30, 0, 1, 92, 30, 0, 1, 92, 12, 0
+>11160e	01 5c 1e 00 01 5c 0c 00
+>111616	01 64 ff 00 f3 00 01 64		.byte 1, 100, 255, 0, 243, 0, 1, 100, 202, 0, 1, 68, 26, 0, 1, 196
+>11161e	ca 00 01 44 1a 00 01 c4
+>111626	01 7c 01 c4 1c 00 01 c4		.byte 1, 124, 1, 196, 28, 0, 1, 196, 1, 124, 1, 52, 1, 124, 1, 196
+>11162e	01 7c 01 34 01 7c 01 c4
+>111636	03 00 01 44 16 00 01 44		.byte 3, 0, 1, 68, 22, 0, 1, 68, 1, 124, 3, 52, 1, 124, 27, 0
+>11163e	01 7c 03 34 01 7c 1b 00
+>111646	01 c4 01 7c 01 34 01 7c		.byte 1, 196, 1, 124, 1, 52, 1, 124, 1, 196, 5, 0, 1, 100, 14, 0
+>11164e	01 c4 05 00 01 64 0e 00
+>111656	01 64 07 00 01 c4 01 7c		.byte 1, 100, 7, 0, 1, 196, 1, 124, 1, 196, 33, 0, 1, 52, 28, 0
+>11165e	01 c4 21 00 01 34 1c 00
+>111666	01 5c 03 00 01 34 01 00		.byte 1, 92, 3, 0, 1, 52, 1, 0, 1, 68, 1, 100, 24, 0, 1, 92
+>11166e	01 44 01 64 18 00 01 5c
+>111676	04 00 01 34 1a 00 01 5c		.byte 4, 0, 1, 52, 26, 0, 1, 92, 5, 0, 1, 52, 25, 0, 1, 92
+>11167e	05 00 01 34 19 00 01 5c
+>111686	06 00 01 34 18 00 01 5c		.byte 6, 0, 1, 52, 24, 0, 1, 92, 7, 0, 1, 52, 23, 0, 1, 92
+>11168e	07 00 01 34 17 00 01 5c
+>111696	08 00 01 34 20 00 01 34		.byte 8, 0, 1, 52, 32, 0, 1, 52, 32, 0, 1, 52, 255, 0, 210, 0
+>11169e	20 00 01 34 ff 00 d2 00
+>1116a6	01 44 64 00 01 44 01 00		.byte 1, 68, 100, 0, 1, 68, 1, 0, 1, 100, 26, 0, 1, 196, 1, 124
+>1116ae	01 64 1a 00 01 c4 01 7c
+>1116b6	01 c4 1c 00 01 c4 01 7c		.byte 1, 196, 28, 0, 1, 196, 1, 124, 1, 52, 1, 124, 1, 196, 27, 0
+>1116be	01 34 01 7c 01 c4 1b 00
+>1116c6	01 7c 03 34 01 7c 01 44		.byte 1, 124, 3, 52, 1, 124, 1, 68, 26, 0, 1, 196, 1, 124, 1, 52
+>1116ce	1a 00 01 c4 01 7c 01 34
+>1116d6	01 7c 01 c4 01 44 04 00		.byte 1, 124, 1, 196, 1, 68, 4, 0, 1, 68, 22, 0, 1, 196, 1, 124
+>1116de	01 44 16 00 01 c4 01 7c
+>1116e6	01 c4 1c 00 01 44 04 00		.byte 1, 196, 28, 0, 1, 68, 4, 0, 1, 92, 28, 0, 1, 52, 3, 0
+>1116ee	01 5c 1c 00 01 34 03 00
+>1116f6	01 5c 1b 00 01 34 04 00		.byte 1, 92, 27, 0, 1, 52, 4, 0, 1, 92, 26, 0, 1, 52, 1, 0
+>1116fe	01 5c 1a 00 01 34 01 00
+>111706	01 44 03 00 01 5c 19 00		.byte 1, 68, 3, 0, 1, 92, 25, 0, 1, 52, 6, 0, 1, 92, 24, 0
+>11170e	01 34 06 00 01 5c 18 00
+>111716	01 34 1f 00 01 34 1f 00		.byte 1, 52, 31, 0, 1, 52, 31, 0, 1, 52, 31, 0, 1, 52, 31, 0
+>11171e	01 34 1f 00 01 34 1f 00
+>111726	01 34 1f 00 01 34 1f 00		.byte 1, 52, 31, 0, 1, 52, 31, 0, 1, 52, 226, 0, 1, 100, 187, 0
+>11172e	01 34 e2 00 01 64 bb 00
+>111736	01 44 59 00 01 44 05 00		.byte 1, 68, 89, 0, 1, 68, 5, 0, 1, 196, 1, 124, 1, 196, 22, 0
+>11173e	01 c4 01 7c 01 c4 16 00
+>111746	01 44 05 00 01 c4 01 7c		.byte 1, 68, 5, 0, 1, 196, 1, 124, 1, 52, 1, 124, 1, 196, 6, 0
+>11174e	01 34 01 7c 01 c4 06 00
+>111756	01 44 14 00 01 7c 03 34		.byte 1, 68, 20, 0, 1, 124, 3, 52, 1, 124, 1, 0, 6, 92, 20, 0
+>11175e	01 7c 01 00 06 5c 14 00
+>111766	01 c4 01 7c 01 34 01 7c		.byte 1, 196, 1, 124, 1, 52, 1, 124, 1, 196, 28, 0, 1, 196, 1, 124
+>11176e	01 c4 1c 00 01 c4 01 7c
+>111776	01 c4 13 00 01 64 07 00		.byte 1, 196, 19, 0, 1, 100, 7, 0, 1, 52, 30, 0, 1, 52, 30, 0
+>11177e	01 34 1e 00 01 34 1e 00
+>111786	01 34 09 00 01 44 14 00		.byte 1, 52, 9, 0, 1, 68, 20, 0, 1, 52, 12, 0, 1, 68, 17, 0
+>11178e	01 34 0c 00 01 44 11 00
+>111796	01 34 1e 00 01 34 1e 00		.byte 1, 52, 30, 0, 1, 52, 30, 0, 1, 52, 6, 0, 1, 100, 23, 0
+>11179e	01 34 06 00 01 64 17 00
+>1117a6	01 34 1e 00 01 34 ff 00		.byte 1, 52, 30, 0, 1, 52, 255, 0, 173, 0, 1, 68, 36, 0, 1, 92
+>1117ae	ad 00 01 44 24 00 01 5c
+>1117b6	0f 00 01 64 0e 00 01 5c		.byte 15, 0, 1, 100, 14, 0, 1, 92, 25, 0, 1, 100, 4, 0, 1, 92
+>1117be	19 00 01 64 04 00 01 5c
+>1117c6	1b 00 01 64 01 00 01 44		.byte 27, 0, 1, 100, 1, 0, 1, 68, 1, 92, 30, 0, 1, 92, 27, 0
+>1117ce	01 5c 1e 00 01 5c 1b 00
+>1117d6	01 c4 01 7c 01 c4 05 00		.byte 1, 196, 1, 124, 1, 196, 5, 0, 1, 68, 17, 0, 1, 68, 4, 0
+>1117de	01 44 11 00 01 44 04 00
+>1117e6	01 c4 01 7c 01 34 01 7c		.byte 1, 196, 1, 124, 1, 52, 1, 124, 1, 196, 2, 0, 1, 100, 13, 0
+>1117ee	01 c4 02 00 01 64 0d 00
+>1117f6	0a 34 01 44 01 7c 03 34		.byte 10, 52, 1, 68, 1, 124, 3, 52, 1, 124, 27, 0, 1, 196, 1, 124
+>1117fe	01 7c 1b 00 01 c4 01 7c
+>111806	01 34 01 7c 01 c4 1c 00		.byte 1, 52, 1, 124, 1, 196, 28, 0, 1, 196, 1, 124, 1, 196, 120, 0
+>11180e	01 c4 01 7c 01 c4 78 00
+>111816	01 64 47 00 01 44 ff 00		.byte 1, 100, 71, 0, 1, 68, 255, 0, 114, 0, 1, 52, 32, 0, 1, 52
+>11181e	72 00 01 34 20 00 01 34
+>111826	20 00 01 34 20 00 01 34		.byte 32, 0, 1, 52, 32, 0, 1, 52, 8, 0, 1, 92, 23, 0, 1, 52
+>11182e	08 00 01 5c 17 00 01 34
+>111836	07 00 01 5c 18 00 01 34		.byte 7, 0, 1, 92, 24, 0, 1, 52, 6, 0, 1, 92, 25, 0, 1, 52
+>11183e	06 00 01 5c 19 00 01 34
+>111846	05 00 01 5c 1a 00 01 34		.byte 5, 0, 1, 92, 26, 0, 1, 52, 4, 0, 1, 92, 27, 0, 1, 52
+>11184e	04 00 01 5c 1b 00 01 34
+>111856	01 00 01 64 01 00 01 5c		.byte 1, 0, 1, 100, 1, 0, 1, 92, 28, 0, 1, 52, 33, 0, 1, 196
+>11185e	1c 00 01 34 21 00 01 c4
+>111866	01 7c 01 c4 05 00 01 44		.byte 1, 124, 1, 196, 5, 0, 1, 68, 15, 0, 1, 68, 6, 0, 1, 196
+>11186e	0f 00 01 44 06 00 01 c4
+>111876	01 7c 01 34 01 7c 01 c4		.byte 1, 124, 1, 52, 1, 124, 1, 196, 27, 0, 1, 124, 3, 52, 1, 124
+>11187e	1b 00 01 7c 03 34 01 7c
+>111886	1b 00 01 c4 01 7c 01 34		.byte 27, 0, 1, 196, 1, 124, 1, 52, 1, 124, 1, 196, 23, 0, 1, 68
+>11188e	01 7c 01 c4 17 00 01 44
+>111896	02 00 01 44 01 00 01 c4		.byte 2, 0, 1, 68, 1, 0, 1, 196, 1, 124, 1, 196, 65, 0, 1, 68
+>11189e	01 7c 01 c4 41 00 01 44
+>1118a6	ff 00 8e 00			.byte 255, 0, 142, 0
+>1118aa	00 00				.byte 0, 0
+
+;******  Return to file: src\spaceship.s
+
+
+;******  Processing file: src\rsrc/tone_pew.s
+
+.1118ac					TONE_PEW
+>1118ac	01				            .byte TONE_SET_ATTEN
+>1118ad	0f 00				            .word $F
+>1118af	02				            .byte TONE_SET_FREQ
+>1118b0	7c 00				            .word 3575800 / (32 * 900)
+>1118b2	05				            .byte TONE_START_ENV
+>1118b3	00 00				            .word 0
+>1118b5	03				            .byte TONE_WAIT
+>1118b6	0a 00				            .word 10
+>1118b8	02				            .byte TONE_SET_FREQ
+>1118b9	83 00				            .word 3575800 / (32 * 850)
+>1118bb	03				            .byte TONE_WAIT
+>1118bc	01 00				            .word 1
+>1118be	02				            .byte TONE_SET_FREQ
+>1118bf	8b 00				            .word 3575800 / (32 * 800)
+>1118c1	03				            .byte TONE_WAIT
+>1118c2	01 00				            .word 1
+>1118c4	02				            .byte TONE_SET_FREQ
+>1118c5	94 00				            .word 3575800 / (32 * 750)
+>1118c7	03				            .byte TONE_WAIT
+>1118c8	01 00				            .word 1
+>1118ca	02				            .byte TONE_SET_FREQ
+>1118cb	9f 00				            .word 3575800 / (32 * 700)
+>1118cd	03				            .byte TONE_WAIT
+>1118ce	01 00				            .word 1
+>1118d0	02				            .byte TONE_SET_FREQ
+>1118d1	ab 00				            .word 3575800 / (32 * 650)
+>1118d3	03				            .byte TONE_WAIT
+>1118d4	01 00				            .word 1
+>1118d6	06				            .byte TONE_RELEASE
+>1118d7	00 00				            .word 0
+>1118d9	00				            .byte TONE_FINISH
+>1118da	00 00				            .word 0
+
+;******  Return to file: src\spaceship.s
+
+
+;******  End of listing
