@@ -1,7 +1,7 @@
 
 ; 64tass Turbo Assembler Macro V1.54.1900 listing file
 ; 64tass -D UNITTEST= -D TRACE_LEVEL=0 --long-address --flat -b --m65816 --intel-hex -o spaceship.hex --list=spaceship.lst --labels=spaceship.lbl src\spaceship.s
-; Sat Mar 14 16:20:05 2020
+; Thu Mar 19 15:49:27 2020
 
 ;Offset	;Hex		;Monitor	;Source
 
@@ -512,7 +512,8 @@
 =$b00000				VSHIP_STILL = $B00000               ; Address in VRAM of sprite image for the stationary space ship
 =11535360				VSHIP_UP = VSHIP_STILL + 32*32      ; Address in VRAM of the sprite image data for the ship pointing up
 =11540480				VTORPEDO = VSHIP_UP + 5*32*32       ; Address in VRAM of the torpedo sprite image data
-=11548672				VSTARS = VTORPEDO + 8*32*32         ; Address of the star field tiles in VRAM
+=11548672				VPURPLE = VTORPEDO + 8*32*32        ; Address in VRAM of the purple flier image data
+=11550720				VSTARS = VPURPLE + 2*32*32          ; Address of the star field tiles in VRAM
 =1					SP_OFF_ADDR = 1                     ; Offset to the address register for a sprite
 =4					SP_OFF_X = 4                        ; Offset to the x coordinate register for a sprite
 =6					SP_OFF_Y = 6                        ; Offset to the y coordinate register for a sprite
@@ -564,7 +565,24 @@
 >205e					MOVEDELDEF      .word ?             ; The reset value for the movement delay counter
 >2060					ANIMPROC        .word ?             ; Pointer to the animation procedure for this type of sprite
 >2062					STATUS          .byte ?             ; Flags to indicate if an UPDATE or ANIMATE call is needed
-=$002063				END_OF_SPRITES  = *
+=$002063				START_POOL = *                      ; First of the available sprites
+.2063					ENEMY
+>2063					X               .word ?             ; The x-coordinate of the sprite
+>2065					Y               .word ?             ; The y-coordinate of the sprite
+>2067					DX              .word ?             ; The per-tick change to the x-coordinate
+>2069					DY              .word ?             ; The per-tick change to the y-coordinate
+>206b					WASMOVING       .word ?             ; Indicates if the sprite was moving on the previous loop
+>206d					SPRITEADDR      .word ?             ; Address of the sprite's registers in Vicky
+>206f					BASEADDR        .dword ?            ; The base address (in Vicky space) of the sprite's animation frames (relative to $B0:0000)
+>2073					FRAME           .word ?             ; The index of the frame to display
+>2075					FRAMECOUNT      .word ?             ; The number of frames in the sprite animation
+>2077					FRAMEDELAY      .word ?             ; A counter to time frame flipping
+>2079					DELAYDEFAULT    .word ?             ; The reset value for the frame delay counter
+>207b					MOVEDELAY       .word ?             ; A counter to time movement in X,Y
+>207d					MOVEDELDEF      .word ?             ; The reset value for the movement delay counter
+>207f					ANIMPROC        .word ?             ; Pointer to the animation procedure for this type of sprite
+>2081					STATUS          .byte ?             ; Flags to indicate if an UPDATE or ANIMATE call is needed
+=$002082				END_OF_SPRITES  = *
 .3000	18		clc		START           CLC                 ; Start up in native mode
 .3001	fb		xce		                XCE
 .3002	08		php		            PHP
@@ -583,612 +601,370 @@
 .3014	68		pla		            PLA
 .3015	28		plp		            PLP
 .3016	e2 20		sep #$20	            SEP #$20
-.3018	a9 ff		lda #$ff	                LDA #$FF            ; Set the noise volume to -1 as a sentinel value
+.3018	a9 ff		lda #$ff	                LDA #$FF                ; Set the noise volume to -1 as a sentinel value
 .301a	85 1b		sta $201b	                STA NOISEVOL
 .301c	c2 30		rep #$30	            REP #$30
-.301e	78		sei		                SEI                 ; Turn off interrupts
-.301f	20 bf 30	jsr $30bf	                JSR INITRNG         ; Initialize the random number generator
-.3022	20 e3 33	jsr $33e3	                JSR LOADRSRC        ; Load the resources into video memory
-.3025	20 3d 31	jsr $313d	                JSR INITGRAPH       ; Set up the graphics
-.3028	20 e7 34	jsr $34e7	                JSR INITTONE        ; Initialize the tone player engine
-.302b	20 6e 31	jsr $316e	                JSR INITSTARS       ; Initialize the star field
-.302e	20 a7 31	jsr $31a7	                JSR INITPLAYER      ; Initialize the player sprite
-.3031	20 27 32	jsr $3227	                JSR INITTORPEDO     ; Initialize the torpedo sprite
-.3034	20 49 33	jsr $3349	                JSR UPDATE
-.3037	20 92 34	jsr $3492	                JSR INITIRQ         ; Set up interrupts
-.303a	58		cli		                CLI                 ; Turn interrupts back on
-.303b					main_loop
-.303b	c2 20		rep #$20	            REP #$20
-.303d	cb		wai		                WAI                     ; Wait for interrupt
-.303e	20 e1 30	jsr $30e1	                JSR CHECKJOY            ; Check for inputs
-.3041	e2 20		sep #$20	            SEP #$20
-.3043	a9 80		lda #$80	                LDA #ML_STAT_ANIMATE    ; Check to see if we can animate the sprites
-.3045	14 24		trb $2024	                TRB STATUS
-.3047	f0 f2		beq $303b	                BEQ main_loop           ; No: go back to waiting
-.3049	20 bd 32	jsr $32bd	                JSR ANIMATE             ; Animate all the active sprites
-.304c	80 ed		bra $303b	                BRA main_loop
-.304e					SHIPMOVE
-.304e	08		php		                PHP
-.304f	78		sei		                SEI
-.3050	c2 20		rep #$20	            REP #$20
-.3052	a5 29		lda $2029	                LDA SHIP.DX         ; If DX <> 0 or DY <> 0, the ship is moving
-.3054	d0 27		bne $307d	                BNE is_moving
-.3056	a5 2b		lda $202b	                LDA SHIP.DY
-.3058	d0 23		bne $307d	                BNE is_moving
-.305a	a5 2d		lda $202d	                LDA SHIP.WASMOVING  ; Don't do anything if the ship was already stationary
-.305c	f0 46		beq $30a4	                BEQ done
-.305e	a9 ff 00	lda #$00ff	                LDA #$FF            ; Turn off the engine noise
-.3061	20 a6 30	jsr $30a6	                JSR NOISE
-.3064	a9 00 00	lda #$0000	                LDA #<>VSHIP_STILL  ; Sprite should be of a stationary ship
-.3067	85 31		sta $2031	                STA SHIP.BASEADDR
-.3069	38		sec		                SEC
-.306a	a9 b0 00	lda #$00b0	                LDA #`VSHIP_STILL
-.306d	e9 b0 00	sbc #$00b0	                SBC #$B0
-.3070	85 33		sta $2033	                STA SHIP.BASEADDR+2
-.3072	a9 01 00	lda #$0001	                LDA #1              ; There is only the one frame
-.3075	85 37		sta $2037	                STA SHIP.FRAMECOUNT
-.3077	64 35		stz $2035	                STZ SHIP.FRAME
-.3079	64 2d		stz $202d	                STZ SHIP.WASMOVING  ; Set that the ship is no longer moving
-.307b	80 27		bra $30a4	                BRA done
-.307d	a5 2d		lda $202d	is_moving       LDA SHIP.WASMOVING  ; Don't update if ship was already moving
-.307f	c9 01 00	cmp #$0001	                CMP #1
-.3082	f0 20		beq $30a4	                BEQ done
-.3084	a9 07 00	lda #$0007	                LDA #7              ; Turn on the engine noise
-.3087	20 a6 30	jsr $30a6	                JSR NOISE
-.308a	a9 00 04	lda #$0400	                LDA #<>VSHIP_UP     ; Sprite should be of a flying ship
-.308d	85 31		sta $2031	                STA SHIP.BASEADDR
-.308f	38		sec		                SEC
-.3090	a9 b0 00	lda #$00b0	                LDA #`VSHIP_UP
-.3093	e9 b0 00	sbc #$00b0	                SBC #$B0
-.3096	85 33		sta $2033	                STA SHIP.BASEADDR+2
-.3098	a9 05 00	lda #$0005	                LDA #5              ; There are five frames in this animation
-.309b	85 37		sta $2037	                STA SHIP.FRAMECOUNT
-.309d	64 35		stz $2035	                STZ SHIP.FRAME
-.309f	a9 01 00	lda #$0001	                LDA #1              ; Set that the ship is now moving
-.30a2	85 2d		sta $202d	                STA SHIP.WASMOVING
-.30a4	28		plp		done            PLP
-.30a5	60		rts		                RTS
-.30a6					NOISE
-.30a6	08		php		                PHP
-.30a7	e2 20		sep #$20	            SEP #$20
-.30a9	29 0f		and #$0f	                AND #$0F            ; Check the attenuation
-.30ab	c5 1b		cmp $201b	                CMP NOISEVOL        ; Is it already set?
-.30ad	f0 0e		beq $30bd	                BEQ done            ; Yes: don't change anything
-.30af	85 1b		sta $201b	                STA NOISEVOL        ; Otherwise, record this volume level
-.30b1	09 f0		ora #$f0	                ORA #$F0            ; Make A an attenuation value for the noise channel
-.30b3	8f 00 f1 af	sta $aff100	                STA @l SN76489
-.30b7	a9 e6		lda #$e6	                LDA #%11100110      ; Make the noise
-.30b9	8f 00 f1 af	sta $aff100	                STA @l SN76489
-.30bd	28		plp		done            PLP
-.30be	60		rts		                RTS
-.30bf					INITRNG
-.30bf	08		php		                PHP
-.30c0	e2 20		sep #$20	            SEP #$20
-.30c2	af 00 08 af	lda $af0800	                LDA @l RTC_SEC              ; Get the seconds and minutes to use as a seed
-.30c6	eb		xba		                XBA
-.30c7	af 02 08 af	lda $af0802	                LDA @l RTC_MIN
-.30cb	c2 20		rep #$20	            REP #$20
-.30cd	8f 84 e8 af	sta $afe884	                STA @l GABE_RNG_DAT_LO      ; Set the seed
-.30d1	e2 20		sep #$20	            SEP #$20
-.30d3	a9 03		lda #$03	                LDA #GABE_RNG_CTRL_EN | GABE_RNG_CTRL_DV
-.30d5	8f 86 e8 af	sta $afe886	                STA @l GABE_RNG_CTRL
-.30d9	a9 01		lda #$01	                LDA #GABE_RNG_CTRL_EN
-.30db	8f 86 e8 af	sta $afe886	                STA @l GABE_RNG_CTRL
-.30df	28		plp		                PLP
-.30e0	60		rts		                RTS
-.30e1					CHECKJOY
-.30e1	08		php		                PHP
-.30e2	78		sei		                SEI
-.30e3	c2 20		rep #$20	            REP #$20
-.30e5	64 29		stz $2029	                STZ SHIP.DX
-.30e7	64 2b		stz $202b	                STZ SHIP.DY
-.30e9	e2 20		sep #$20	            SEP #$20
-.30eb	af 00 e8 af	lda $afe800	                LDA @l JOYSTICK0    ; Get the first joystick
-.30ef	c2 20		rep #$20	            REP #$20
-.30f1	29 ff 00	and #$00ff	                AND #$00FF
-.30f4	85 15		sta $2015	                STA JOY0
-.30f6	89 10 00	bit #$0010	                BIT #%00010000      ; Has the button been pushed?
-.30f9	d0 03		bne $30fe	                BNE check_move      ; No: check the movement buttons
-.30fb	20 71 32	jsr $3271	                JSR FIRE            ; Yes: fire the torpedo
-.30fe	89 08 00	bit #$0008	check_move      BIT #%00001000
-.3101	f0 11		beq $3114	                BEQ right
-.3103	89 04 00	bit #$0004	                BIT #%00000100
-.3106	d0 12		bne $311a	                BNE check_ud
-.3108					left
-.3108	c2 20		rep #$20	            REP #$20
-.310a	a5 0e		lda $200e	                LDA SHIPSPEED
-.310c	49 ff ff	eor #$ffff	                EOR #$FFFF
-.310f	1a		inc a		                INC A
-.3110	85 29		sta $2029	                STA SHIP.DX
-.3112	80 06		bra $311a	                BRA check_ud
-.3114					right
-.3114	c2 20		rep #$20	            REP #$20
-.3116	a5 0e		lda $200e	                LDA SHIPSPEED
-.3118	85 29		sta $2029	                STA SHIP.DX
-.311a	a5 15		lda $2015	check_ud        LDA JOY0
-.311c	89 02 00	bit #$0002	                BIT #%00000010
-.311f	f0 11		beq $3132	                BEQ down
-.3121	89 01 00	bit #$0001	                BIT #%00000001
-.3124	d0 12		bne $3138	                BNE set_move
-.3126					up
-.3126	c2 20		rep #$20	            REP #$20
-.3128	a5 0e		lda $200e	                LDA SHIPSPEED
-.312a	49 ff ff	eor #$ffff	                EOR #$FFFF
-.312d	1a		inc a		                INC A
-.312e	85 2b		sta $202b	                STA SHIP.DY
-.3130	80 06		bra $3138	                BRA set_move
-.3132					down
-.3132	c2 20		rep #$20	            REP #$20
-.3134	a5 0e		lda $200e	                LDA SHIPSPEED
-.3136	85 2b		sta $202b	                STA SHIP.DY
-.3138	20 4e 30	jsr $304e	set_move        JSR SHIPMOVE        ; Set whether or not the ship is moving
-.313b	28		plp		done            PLP
-.313c	60		rts		                RTS
-.313d	08		php		INITGRAPH       PHP
-.313e	e2 20		sep #$20	            SEP #$20
-.3140	a9 34		lda #$34	                LDA #Mstr_Ctrl_Graph_Mode_En | Mstr_Ctrl_Sprite_En | Mstr_Ctrl_TileMap_En ;| Mstr_Ctrl_Text_Overlay | Mstr_Ctrl_Text_Mode_En
-.3142	8f 00 00 af	sta $af0000	                STA @l MASTER_CTRL_REG_L
-.3146	a9 01		lda #$01	                LDA #%00000001                  ; Enable and use LUT0
-.3148	8f 00 02 af	sta $af0200	                STA @l SP00_CONTROL_REG         ; With sprite #0
-.314c	a9 00		lda #$00	                LDA #0                          ; Turn off the border
-.314e	8f 04 00 af	sta $af0004	                STA @l BORDER_CTRL_REG
-.3152	8f 08 00 af	sta $af0008	                STA @l BORDER_X_SIZE            ; And set its size to 0
-.3156	8f 09 00 af	sta $af0009	                STA @l BORDER_Y_SIZE
-.315a	a9 00		lda #$00	                LDA #0
-.315c	8f 00 07 af	sta $af0700	                STA @l MOUSE_PTR_CTRL_REG_L     ; Turn off the mouse pointer
-.3160	c2 20		rep #$20	            REP #$20
-.3162	a9 60 02	lda #$0260	                LDA #640-32                     ; Set the right most position of a sprite
-.3165	85 17		sta $2017	                STA BOUNDARY_R
-.3167	a9 c0 01	lda #$01c0	                LDA #480-32                     ; Set the right most position of a sprite
-.316a	85 19		sta $2019	                STA BOUNDARY_B
-.316c	28		plp		                PLP
-.316d	60		rts		                RTS
-.316e					INITSTARS
-.316e	08		php		                PHP
-.316f	c2 20		rep #$20	            REP #$20
-.3171	a9 00 38	lda #$3800	                LDA #<>VSTARS
-.3174	8f 01 01 af	sta $af0101	                STA @l TL0_START_ADDY_L
-.3178	e2 20		sep #$20	            SEP #$20
-.317a	a9 00		lda #$00	                LDA #(`VSTARS) - $B0
-.317c	8f 03 01 af	sta $af0103	                STA @l TL0_START_ADDY_H
-.3180	a9 83		lda #$83	                LDA #%10000011                              ; Display the tiles and expect a 256x256 tile sheet
-.3182	8f 00 01 af	sta $af0100	                STA @l TL0_CONTROL_REG
-.3186	a2 00 00	ldx #$0000	                LDX #0
-.3189	af 84 e8 af	lda $afe884	loop            LDA @l GABE_RNG_SEED_LO                     ; Get a random number
-.318d	29 0f		and #$0f	                AND #$0F                                    ; Restrict it to 0 - 7
-.318f	d0 12		bne $31a3	                BNE set_clear
-.3191	af 84 e8 af	lda $afe884	                LDA @l GABE_RNG_SEED_LO                     ; Get a random number
-.3195	29 0f		and #$0f	                AND #$0F
-.3197	9f 00 50 af	sta $af5000,x	set_tile        STA @l TILE_MAP0,X                          ; Save it to the tile map
-.319b	e8		inx		                INX                                         ; Move to the next tile
-.319c	e0 00 08	cpx #$0800	                CPX #$0800                                  ; Until we've done the last tile
-.319f	d0 e8		bne $3189	                BNE loop
-.31a1	28		plp		                PLP
-.31a2	60		rts		                RTS
-.31a3	a9 00		lda #$00	set_clear       LDA #0                                      ; Most of tiles will be clear
-.31a5	80 f0		bra $3197	                BRA set_tile
-.31a7					INITPLAYER
-.31a7	08		php		                PHP
-.31a8	c2 20		rep #$20	            REP #$20
-.31aa	a9 00 02	lda #$0200	                LDA #<>SP00_CONTROL_REG     ; Set the address of the sprite registers
-.31ad	85 2f		sta $202f	                STA SHIP.SPRITEADDR
-.31af	a9 06 00	lda #$0006	                LDA #6                      ; Set the frame delay count
-.31b2	85 3b		sta $203b	                STA SHIP.DELAYDEFAULT
-.31b4	a9 01 00	lda #$0001	                LDA #1                      ; Set the movement delay count
-.31b7	85 3f		sta $203f	                STA SHIP.MOVEDELDEF
-.31b9	a9 02 00	lda #$0002	                LDA #2                      ; Set the default speed of the ship
-.31bc	85 0e		sta $200e	                STA SHIPSPEED
-.31be	a9 30 01	lda #$0130	                LDA #320 - 16               ; Put the sprite in the middle of the screen
-.31c1	85 25		sta $2025	                STA SHIP.X
-.31c3	a9 e0 00	lda #$00e0	                LDA #240 - 16
-.31c6	85 27		sta $2027	                STA SHIP.Y
-.31c8	64 29		stz $2029	                STZ SHIP.DX                 ; Stationary
-.31ca	64 2b		stz $202b	                STZ SHIP.DY
-.31cc	20 4e 30	jsr $304e	                JSR SHIPMOVE                ; Set the sound and graphics for a non-moving ship
-.31cf	64 35		stz $2035	                STZ SHIP.FRAME              ; Initial frame
-.31d1	a9 01 00	lda #$0001	                LDA #1
-.31d4	85 37		sta $2037	                STA SHIP.FRAMECOUNT         ; 0 frames in the animation
-.31d6	a5 3b		lda $203b	                LDA SHIP.DELAYDEFAULT
-.31d8	85 39		sta $2039	                STA SHIP.FRAMEDELAY         ; Set the frame delay counter
-.31da	a5 3f		lda $203f	                LDA SHIP.MOVEDELDEF         ; Set the movement delay counter
-.31dc	85 3d		sta $203d	                STA SHIP.MOVEDELAY
-.31de	a9 ff ff	lda #$ffff	                LDA #$FFFF
-.31e1	85 2d		sta $202d	                STA SHIP.WASMOVING          ; Set ship was moving flag to sentinel value
-.31e3	a9 f0 31	lda #$31f0	                LDA #<>ANIMPLAYER           ; Set the animation procedure for the sprite
-.31e6	85 41		sta $2041	                STA SHIP.ANIMPROC
-.31e8	e2 20		sep #$20	            SEP #$20
-.31ea	a9 e0		lda #$e0	                LDA #SP_STAT_ACTIVE | SP_STAT_UPDATE
-.31ec	85 43		sta $2043	                STA SHIP.STATUS             ; Flag the ship as active and ready for an update
-.31ee	28		plp		                PLP
-.31ef	60		rts		                RTS
-.31f0					ANIMPLAYER
-.31f0	08		php		                PHP
-.31f1	08		php		            PHP
-.31f2	e2 20		sep #$20	            SEP #$20
-.31f4	48		pha		            PHA
-.31f5	a9 00		lda #$00	            LDA #0
-.31f7	48		pha		            PHA
-.31f8	ab		plb		            PLB
-.31f9	68		pla		            PLA
-.31fa	28		plp		            PLP
-.31fb	08		php		            PHP
-.31fc	c2 20		rep #$20	            REP #$20
-.31fe	48		pha		            PHA
-.31ff	a9 00 20	lda #$2000	            LDA #SRCPTR
-.3202	5b		tcd		            TCD
-.3203	68		pla		            PLA
-.3204	28		plp		            PLP
-.3205	a5 25		lda $2025	                LDA SHIP.X
-.3207	10 04		bpl $320d	                BPL check_right             ; X >= 0?
-.3209	64 25		stz $2025	                STZ SHIP.X                  ; No: Lock it to 0
-.320b	80 08		bra $3215	                BRA check_top
-.320d	c5 17		cmp $2017	check_right     CMP BOUNDARY_R              ; X >= the right most position?
-.320f	90 04		bcc $3215	                BLT check_top               ; No: we're good
-.3211	a5 17		lda $2017	                LDA BOUNDARY_R              ; Yes: lock it to the right most position
-.3213	85 25		sta $2025	                STA SHIP.X
-.3215	a5 27		lda $2027	check_top       LDA SHIP.Y
-.3217	10 04		bpl $321d	                BPL check_bottom            ; Y >= 0?
-.3219	64 27		stz $2027	                STZ SHIP.Y                  ; No: Lock it to 0
-.321b	80 f8		bra $3215	                BRA check_top
-.321d	c5 19		cmp $2019	check_bottom    CMP BOUNDARY_B              ; X >= the right most position?
-.321f	90 04		bcc $3225	                BLT done                    ; No: we're good
-.3221	a5 19		lda $2019	                LDA BOUNDARY_B              ; Yes: lock it to the right most position
-.3223	85 27		sta $2027	                STA SHIP.Y
-.3225	28		plp		done            PLP
-.3226	60		rts		                RTS
-.3227					INITTORPEDO
-.3227	08		php		                PHP
+.301e	78		sei		                SEI                     ; Turn off interrupts
+.301f	20 6a 30	jsr $306a	                JSR INITRNG             ; Initialize the random number generator
+.3022	20 ac 34	jsr $34ac	                JSR LOADRSRC            ; Load the resources into video memory
+.3025	20 8c 30	jsr $308c	                JSR INITGRAPH           ; Set up the graphics
+.3028	20 f2 32	jsr $32f2	                JSR INITTONE            ; Initialize the tone player engine
+.302b	20 bd 30	jsr $30bd	                JSR INITSTARS           ; Initialize the star field
+.302e	20 1c 32	jsr $321c	                JSR INITSPRITES         ; Do initial setup of sprites
+.3031	20 ce 35	jsr $35ce	                JSR INITPLAYER          ; Initialize the player sprite
+.3034	20 a1 36	jsr $36a1	                JSR INITTORPEDO         ; Initialize the torpedo sprite
+.3037	20 82 31	jsr $3182	                JSR UPDATE
+.303a	20 9d 32	jsr $329d	                JSR INITIRQ             ; Set up interrupts
+.303d	58		cli		                CLI                     ; Turn interrupts back on
+.303e					main_loop
+.303e	c2 20		rep #$20	            REP #$20
+.3040	cb		wai		                WAI                     ; Wait for interrupt
+.3041	20 72 35	jsr $3572	                JSR CHECKJOY            ; Check for inputs
+.3044	e2 20		sep #$20	            SEP #$20
+.3046	a9 80		lda #$80	                LDA #ML_STAT_ANIMATE    ; Check to see if we can animate the sprites
+.3048	14 24		trb $2024	                TRB STATUS
+.304a	f0 f2		beq $303e	                BEQ main_loop           ; No: go back to waiting
+.304c	20 f6 30	jsr $30f6	                JSR ANIMATE             ; Animate all the active sprites
+.304f	80 ed		bra $303e	                BRA main_loop
+.3051					NOISE
+.3051	08		php		                PHP
+.3052	e2 20		sep #$20	            SEP #$20
+.3054	29 0f		and #$0f	                AND #$0F            ; Check the attenuation
+.3056	c5 1b		cmp $201b	                CMP NOISEVOL        ; Is it already set?
+.3058	f0 0e		beq $3068	                BEQ done            ; Yes: don't change anything
+.305a	85 1b		sta $201b	                STA NOISEVOL        ; Otherwise, record this volume level
+.305c	09 f0		ora #$f0	                ORA #$F0            ; Make A an attenuation value for the noise channel
+.305e	8f 00 f1 af	sta $aff100	                STA @l SN76489
+.3062	a9 e6		lda #$e6	                LDA #%11100110      ; Make the noise
+.3064	8f 00 f1 af	sta $aff100	                STA @l SN76489
+.3068	28		plp		done            PLP
+.3069	60		rts		                RTS
+.306a					INITRNG
+.306a	08		php		                PHP
+.306b	e2 20		sep #$20	            SEP #$20
+.306d	af 00 08 af	lda $af0800	                LDA @l RTC_SEC              ; Get the seconds and minutes to use as a seed
+.3071	eb		xba		                XBA
+.3072	af 02 08 af	lda $af0802	                LDA @l RTC_MIN
+.3076	c2 20		rep #$20	            REP #$20
+.3078	8f 84 e8 af	sta $afe884	                STA @l GABE_RNG_DAT_LO      ; Set the seed
+.307c	e2 20		sep #$20	            SEP #$20
+.307e	a9 03		lda #$03	                LDA #GABE_RNG_CTRL_EN | GABE_RNG_CTRL_DV
+.3080	8f 86 e8 af	sta $afe886	                STA @l GABE_RNG_CTRL
+.3084	a9 01		lda #$01	                LDA #GABE_RNG_CTRL_EN
+.3086	8f 86 e8 af	sta $afe886	                STA @l GABE_RNG_CTRL
+.308a	28		plp		                PLP
+.308b	60		rts		                RTS
+.308c	08		php		INITGRAPH       PHP
+.308d	e2 20		sep #$20	            SEP #$20
+.308f	a9 34		lda #$34	                LDA #Mstr_Ctrl_Graph_Mode_En | Mstr_Ctrl_Sprite_En | Mstr_Ctrl_TileMap_En ;| Mstr_Ctrl_Text_Overlay | Mstr_Ctrl_Text_Mode_En
+.3091	8f 00 00 af	sta $af0000	                STA @l MASTER_CTRL_REG_L
+.3095	a9 01		lda #$01	                LDA #%00000001                  ; Enable and use LUT0
+.3097	8f 00 02 af	sta $af0200	                STA @l SP00_CONTROL_REG         ; With sprite #0
+.309b	a9 00		lda #$00	                LDA #0                          ; Turn off the border
+.309d	8f 04 00 af	sta $af0004	                STA @l BORDER_CTRL_REG
+.30a1	8f 08 00 af	sta $af0008	                STA @l BORDER_X_SIZE            ; And set its size to 0
+.30a5	8f 09 00 af	sta $af0009	                STA @l BORDER_Y_SIZE
+.30a9	a9 00		lda #$00	                LDA #0
+.30ab	8f 00 07 af	sta $af0700	                STA @l MOUSE_PTR_CTRL_REG_L     ; Turn off the mouse pointer
+.30af	c2 20		rep #$20	            REP #$20
+.30b1	a9 60 02	lda #$0260	                LDA #640-32                     ; Set the right most position of a sprite
+.30b4	85 17		sta $2017	                STA BOUNDARY_R
+.30b6	a9 c0 01	lda #$01c0	                LDA #480-32                     ; Set the right most position of a sprite
+.30b9	85 19		sta $2019	                STA BOUNDARY_B
+.30bb	28		plp		                PLP
+.30bc	60		rts		                RTS
+.30bd					INITSTARS
+.30bd	08		php		                PHP
+.30be	c2 20		rep #$20	            REP #$20
+.30c0	a9 00 40	lda #$4000	                LDA #<>VSTARS
+.30c3	8f 01 01 af	sta $af0101	                STA @l TL0_START_ADDY_L
+.30c7	e2 20		sep #$20	            SEP #$20
+.30c9	a9 00		lda #$00	                LDA #(`VSTARS) - $B0
+.30cb	8f 03 01 af	sta $af0103	                STA @l TL0_START_ADDY_H
+.30cf	a9 83		lda #$83	                LDA #%10000011                              ; Display the tiles and expect a 256x256 tile sheet
+.30d1	8f 00 01 af	sta $af0100	                STA @l TL0_CONTROL_REG
+.30d5	a2 00 00	ldx #$0000	                LDX #0
+.30d8	af 84 e8 af	lda $afe884	loop            LDA @l GABE_RNG_SEED_LO                     ; Get a random number
+.30dc	29 0f		and #$0f	                AND #$0F                                    ; Restrict it to 0 - 7
+.30de	d0 12		bne $30f2	                BNE set_clear
+.30e0	af 84 e8 af	lda $afe884	                LDA @l GABE_RNG_SEED_LO                     ; Get a random number
+.30e4	29 0f		and #$0f	                AND #$0F
+.30e6	9f 00 50 af	sta $af5000,x	set_tile        STA @l TILE_MAP0,X                          ; Save it to the tile map
+.30ea	e8		inx		                INX                                         ; Move to the next tile
+.30eb	e0 00 08	cpx #$0800	                CPX #$0800                                  ; Until we've done the last tile
+.30ee	d0 e8		bne $30d8	                BNE loop
+.30f0	28		plp		                PLP
+.30f1	60		rts		                RTS
+.30f2	a9 00		lda #$00	set_clear       LDA #0                                      ; Most of tiles will be clear
+.30f4	80 f0		bra $30e6	                BRA set_tile
+.30f6					ANIMATE
+.30f6	08		php		                PHP
+.30f7	c2 30		rep #$30	            REP #$30
+.30f9	a2 25 20	ldx #$2025	                LDX #<>START_OF_SPRITES
+.30fc	20 0f 31	jsr $310f	loop            JSR ANIMSPRITE
+.30ff	8a		txa		                TXA
+.3100	18		clc		                CLC
+.3101	69 1f 00	adc #$001f	                ADC #size(SPRITE)
+.3104	aa		tax		                TAX
+.3105	e0 82 20	cpx #$2082	                CPX #<>END_OF_SPRITES
+.3108	d0 f2		bne $30fc	                BNE loop
+.310a	28		plp		done            PLP
+.310b	60		rts		                RTS
+.310c	6c 13 20	jmp ($2013)	DISPATCH        JMP (INDPROC)
+.310f					ANIMSPRITE
+.310f	08		php		                PHP
+.3110	08		php		            PHP
+.3111	e2 20		sep #$20	            SEP #$20
+.3113	48		pha		            PHA
+.3114	a9 00		lda #$00	            LDA #0
+.3116	48		pha		            PHA
+.3117	ab		plb		            PLB
+.3118	68		pla		            PLA
+.3119	28		plp		            PLP
+.311a	08		php		            PHP
+.311b	c2 20		rep #$20	            REP #$20
+.311d	48		pha		            PHA
+.311e	a9 00 20	lda #$2000	            LDA #SRCPTR
+.3121	5b		tcd		            TCD
+.3122	68		pla		            PLA
+.3123	28		plp		            PLP
+.3124	e2 20		sep #$20	            SEP #$20
+.3126	bd 1e 00	lda $001e,x	                LDA SPRITE.STATUS,X         ; Check if the sprite is active
+.3129	10 4a		bpl $3175	                BPL done                    ; NO: there is no need to animate
+.312b	c2 30		rep #$30	            REP #$30
+.312d	bd 1c 00	lda $001c,x	                LDA SPRITE.ANIMPROC,X       ; Get the address of this sprite's animation routine
+.3130	f0 05		beq $3137	                BEQ do_frame                ; If it's NULL, just do the default stuff
+.3132	85 13		sta $2013	                STA INDPROC                 ; Save it to the dispatch pointer
+.3134	20 0c 31	jsr $310c	                JSR DISPATCH                ; And call it
+.3137	bd 10 00	lda $0010,x	do_frame        LDA SPRITE.FRAME,X          ; Get the current frame number
+.313a	30 39		bmi $3175	                BMI done                    ; If it's negative, the sprite is inactive
+.313c	de 14 00	dec $0014,x	                DEC SPRITE.FRAMEDELAY,X     ; Decrement the frame delay counter
+.313f	d0 15		bne $3156	                BNE frame_done              ; If it's not zero, we don't change the frame
+.3141	bd 16 00	lda $0016,x	                LDA SPRITE.DELAYDEFAULT,X   ; Reset the frame delay counter
+.3144	9d 14 00	sta $0014,x	                STA SPRITE.FRAMEDELAY,X
+.3147	bd 10 00	lda $0010,x	                LDA SPRITE.FRAME,X          ; Get the current frame number
+.314a	1a		inc a		                INC A                       ; Go to the next frame
+.314b	dd 12 00	cmp $0012,x	                CMP SPRITE.FRAMECOUNT,X     ; Check to see if we've reached the limit
+.314e	d0 03		bne $3153	                BNE set_frame
+.3150	a9 00 00	lda #$0000	                LDA #0                      ; Yes: return to frame 0
+.3153	9d 10 00	sta $0010,x	set_frame       STA SPRITE.FRAME,X          ; Set the frame
+.3156					frame_done
+.3156	de 18 00	dec $0018,x	                DEC SPRITE.MOVEDELAY,X      ; Decrement the movement delay counter
+.3159	d0 1a		bne $3175	                BNE done                    ; If it's not zero, we don't move the sprite
+.315b	bd 1a 00	lda $001a,x	                LDA SPRITE.MOVEDELDEF,X     ; Reset the movement delay counter
+.315e	9d 18 00	sta $0018,x	                STA SPRITE.MOVEDELAY,X
+.3161	18		clc		                CLC                         ; X := X + DX
+.3162	bd 04 00	lda $0004,x	                LDA SPRITE.DX,X
+.3165	7d 00 00	adc $0000,x	                ADC SPRITE.X,X
+.3168	9d 00 00	sta $0000,x	                STA SPRITE.X,X
+.316b	18		clc		update_y        CLC                         ; Y := Y + DY
+.316c	bd 06 00	lda $0006,x	                LDA SPRITE.DY,X
+.316f	7d 02 00	adc $0002,x	                ADC SPRITE.Y,X
+.3172	9d 02 00	sta $0002,x	                STA SPRITE.Y,X
+.3175	78		sei		done            SEI                         ; Flag that the sprite needs to be updated in Vicky
+.3176	e2 20		sep #$20	            SEP #$20
+.3178	a9 60		lda #$60	                LDA #SP_STAT_UPDATE
+.317a	1d 1e 00	ora $001e,x	                ORA SPRITE.STATUS,X
+.317d	9d 1e 00	sta $001e,x	                STA SPRITE.STATUS,X
+.3180	28		plp		                PLP
+.3181	60		rts		                RTS
+.3182					UPDATE
+.3182	08		php		                PHP
+.3183	c2 30		rep #$30	            REP #$30
+.3185	a2 25 20	ldx #$2025	                LDX #<>START_OF_SPRITES
+.3188	20 98 31	jsr $3198	loop            JSR UPDATESPRITE
+.318b	8a		txa		                TXA
+.318c	18		clc		                CLC
+.318d	69 1f 00	adc #$001f	                ADC #size(SPRITE)
+.3190	aa		tax		                TAX
+.3191	e0 82 20	cpx #$2082	                CPX #<>END_OF_SPRITES
+.3194	d0 f2		bne $3188	                BNE loop
+.3196	28		plp		done            PLP
+.3197	60		rts		                RTS
+.3198					UPDATESPRITE
+.3198	08		php		                PHP
+.3199	08		php		            PHP
+.319a	e2 20		sep #$20	            SEP #$20
+.319c	48		pha		            PHA
+.319d	a9 00		lda #$00	            LDA #0
+.319f	48		pha		            PHA
+.31a0	ab		plb		            PLB
+.31a1	68		pla		            PLA
+.31a2	28		plp		            PLP
+.31a3	08		php		            PHP
+.31a4	c2 20		rep #$20	            REP #$20
+.31a6	48		pha		            PHA
+.31a7	a9 00 20	lda #$2000	            LDA #SRCPTR
+.31aa	5b		tcd		            TCD
+.31ab	68		pla		            PLA
+.31ac	28		plp		            PLP
+.31ad	c2 30		rep #$30	            REP #$30
+.31af	bd 10 00	lda $0010,x	                LDA SPRITE.FRAME,X          ; Get the current frame number
+.31b2	30 66		bmi $321a	                BMI done                    ; If it's negative, the sprite is inactive
+.31b4	bd 0a 00	lda $000a,x	                LDA SPRITE.SPRITEADDR,X     ; TMPPTR := pointer to the sprite's registers in Vicky
+.31b7	85 20		sta $2020	                STA REGPTR
+.31b9	a9 af 00	lda #$00af	                LDA #`SP00_CONTROL_REG
+.31bc	85 22		sta $2022	                STA REGPTR+2
+.31be	64 0a		stz $200a	                STZ TEMP
+.31c0	64 0c		stz $200c	                STZ TEMP+2
+.31c2	bd 00 00	lda $0000,x	                LDA SPRITE.X,X          ; Set the X position of the sprite
+.31c5	a0 04 00	ldy #$0004	                LDY #SP_OFF_X
+.31c8	97 20		sta [$2020],y	                STA [REGPTR],Y
+.31ca	bd 02 00	lda $0002,x	                LDA SPRITE.Y,X          ; Set the Y position of the sprite
+.31cd	a0 06 00	ldy #$0006	                LDY #SP_OFF_Y
+.31d0	97 20		sta [$2020],y	                STA [REGPTR],Y
+.31d2	bd 10 00	lda $0010,x	                LDA SPRITE.FRAME,X      ; Get the animation frame's offset into TEMP
+.31d5	85 0a		sta $200a	                STA TEMP
+.31d7	06 0a		asl $200a	                ASL TEMP
+.31d9	26 0c		rol $200c	                ROL TEMP+2
+.31db	06 0a		asl $200a	                ASL TEMP
+.31dd	26 0c		rol $200c	                ROL TEMP+2
+.31df	06 0a		asl $200a	                ASL TEMP
+.31e1	26 0c		rol $200c	                ROL TEMP+2
+.31e3	06 0a		asl $200a	                ASL TEMP
+.31e5	26 0c		rol $200c	                ROL TEMP+2
+.31e7	06 0a		asl $200a	                ASL TEMP
+.31e9	26 0c		rol $200c	                ROL TEMP+2
+.31eb	06 0a		asl $200a	                ASL TEMP
+.31ed	26 0c		rol $200c	                ROL TEMP+2
+.31ef	06 0a		asl $200a	                ASL TEMP
+.31f1	26 0c		rol $200c	                ROL TEMP+2
+.31f3	06 0a		asl $200a	                ASL TEMP
+.31f5	26 0c		rol $200c	                ROL TEMP+2
+.31f7	06 0a		asl $200a	                ASL TEMP
+.31f9	26 0c		rol $200c	                ROL TEMP+2
+.31fb	06 0a		asl $200a	                ASL TEMP
+.31fd	26 0c		rol $200c	                ROL TEMP+2
+.31ff	18		clc		                CLC
+.3200	bd 0c 00	lda $000c,x	                LDA SPRITE.BASEADDR,X   ; Add the base address of the animation frames
+.3203	65 0a		adc $200a	                ADC TEMP
+.3205	a0 01 00	ldy #$0001	                LDY #SP_OFF_ADDR
+.3208	97 20		sta [$2020],y	                STA [REGPTR],Y
+.320a	85 0a		sta $200a	                STA TEMP
+.320c	e2 20		sep #$20	            SEP #$20
+.320e	bd 0e 00	lda $000e,x	                LDA SPRITE.BASEADDR+2,X
+.3211	65 0c		adc $200c	                ADC TEMP+2
+.3213	85 0c		sta $200c	                STA TEMP+2
+.3215	a0 03 00	ldy #$0003	                LDY #SP_OFF_ADDR+2
+.3218	97 20		sta [$2020],y	                STA [REGPTR],Y          ; And set the address of the sprite pixmap
+.321a	28		plp		done            PLP
+.321b	60		rts		                RTS
+.321c					INITSPRITES
+.321c	08		php		                PHP
+.321d	08		php		            PHP
+.321e	e2 20		sep #$20	            SEP #$20
+.3220	48		pha		            PHA
+.3221	a9 00		lda #$00	            LDA #0
+.3223	48		pha		            PHA
+.3224	ab		plb		            PLB
+.3225	68		pla		            PLA
+.3226	28		plp		            PLP
+.3227	08		php		            PHP
 .3228	c2 20		rep #$20	            REP #$20
-.322a	a9 08 02	lda #$0208	                LDA #<>SP01_CONTROL_REG     ; Set the address of the sprite registers
-.322d	85 4e		sta $204e	                STA TORPEDO.SPRITEADDR
-.322f	a9 06 00	lda #$0006	                LDA #6                      ; Set the frame delay count
-.3232	85 5a		sta $205a	                STA TORPEDO.DELAYDEFAULT
-.3234	a9 01 00	lda #$0001	                LDA #1                      ; Set the movement delay count
-.3237	85 5e		sta $205e	                STA TORPEDO.MOVEDELDEF
-.3239	a9 30 01	lda #$0130	                LDA #320 - 16               ; Put the sprite in the middle of the screen
-.323c	85 44		sta $2044	                STA TORPEDO.X               ; This should be set on FIRE
-.323e	a9 e0 00	lda #$00e0	                LDA #240 - 16
-.3241	85 46		sta $2046	                STA TORPEDO.Y
-.3243	64 48		stz $2048	                STZ TORPEDO.DX              ; Stationary
-.3245	a9 fc ff	lda #$fffc	                LDA #$FFFC                  ; -4 in the Y direction
-.3248	85 4a		sta $204a	                STA TORPEDO.DY
-.324a	a9 ff ff	lda #$ffff	                LDA #$FFFF                  ; Set initial frame to -1 to keep it inactive until FIRE
-.324d	85 54		sta $2054	                STA TORPEDO.FRAME
-.324f	a9 08 00	lda #$0008	                LDA #8
-.3252	85 56		sta $2056	                STA TORPEDO.FRAMECOUNT      ; 0 frames in the animation
-.3254	a5 5a		lda $205a	                LDA TORPEDO.DELAYDEFAULT
-.3256	85 58		sta $2058	                STA TORPEDO.FRAMEDELAY      ; Set the frame delay counter
-.3258	a9 00 18	lda #$1800	                LDA #<>VTORPEDO             ; Sprite should be of a torpedo
-.325b	85 50		sta $2050	                STA TORPEDO.BASEADDR
-.325d	38		sec		                SEC
-.325e	a9 b0 00	lda #$00b0	                LDA #`VTORPEDO
-.3261	e9 b0 00	sbc #$00b0	                SBC #$B0
-.3264	85 52		sta $2052	                STA TORPEDO.BASEADDR+2
-.3266	a5 5e		lda $205e	                LDA TORPEDO.MOVEDELDEF      ; Set the movement delay counter
-.3268	85 5c		sta $205c	                STA TORPEDO.MOVEDELAY
-.326a	a9 a3 32	lda #$32a3	                LDA #<>ANIMTORPEDO           ; Set the animation procedure for the sprite
-.326d	85 60		sta $2060	                STA TORPEDO.ANIMPROC
-.326f	28		plp		                PLP
-.3270	60		rts		                RTS
-.3271					FIRE
-.3271	48		pha		                PHA
-.3272	08		php		                PHP
-.3273	c2 20		rep #$20	            REP #$20
-.3275	a5 54		lda $2054	                LDA TORPEDO.FRAME           ; Is the torpedo already on the screen?
-.3277	10 27		bpl $32a0	                BPL done                    ; Yes: we don't fire again
-.3279	a5 25		lda $2025	                LDA SHIP.X                  ; Set the torpedo position to be the same as the ship
-.327b	85 44		sta $2044	                STA TORPEDO.X
-.327d	a5 27		lda $2027	                LDA SHIP.Y
-.327f	85 46		sta $2046	                STA TORPEDO.Y
-.3281	a9 00 00	lda #$0000	                LDA #0                      ; Set the starting frame
-.3284	85 54		sta $2054	                STA TORPEDO.FRAME
-.3286	e2 20		sep #$20	            SEP #$20
-.3288	a9 e0		lda #$e0	                LDA #SP_STAT_ACTIVE | SP_STAT_UPDATE
-.328a	85 62		sta $2062	                STA TORPEDO.STATUS          ; Make the torpedo sprite active and ready for update
-.328c	a9 01		lda #$01	                LDA #$01
-.328e	8f 08 02 af	sta $af0208	                STA @l SP01_CONTROL_REG
-.3292	c2 20		rep #$20	            REP #$20
-.3294	a9 ac 18	lda #$18ac	                LDA #<>TONE_PEW             ; Queue playing the PEW sound
-.3297	85 65		sta $2065	                STA TONEPTR
-.3299	a9 11 00	lda #$0011	                LDA #`TONE_PEW
-.329c	85 67		sta $2067	                STA TONEPTR+2
-.329e	64 63		stz $2063	                STZ TONECOUNT
-.32a0	28		plp		done            PLP
-.32a1	68		pla		                PLA
-.32a2	60		rts		                RTS
-.32a3					ANIMTORPEDO
-.32a3	08		php		                PHP
-.32a4	a5 46		lda $2046	                LDA TORPEDO.Y               ; Check the height
-.32a6	30 02		bmi $32aa	                BMI cancel                  ; If above the first line, cancel it
-.32a8	d0 11		bne $32bb	                BNE done                    ; If not at the top, we're done
-.32aa	a9 ff ff	lda #$ffff	cancel          LDA #$FFFF                  ; If at top, stop processing the torpedo
-.32ad	85 54		sta $2054	                STA TORPEDO.FRAME
-.32af	e2 20		sep #$20	            SEP #$20
-.32b1	a9 00		lda #$00	                LDA #0
-.32b3	8f 08 02 af	sta $af0208	                STA @l SP01_CONTROL_REG
-.32b7	a9 00		lda #$00	                LDA #0
-.32b9	85 62		sta $2062	                STA TORPEDO.STATUS          ; Deactivate the torpedo sprite
-.32bb	28		plp		done            PLP
-.32bc	60		rts		                RTS
-.32bd					ANIMATE
-.32bd	08		php		                PHP
-.32be	c2 30		rep #$30	            REP #$30
-.32c0	a2 25 20	ldx #$2025	                LDX #<>START_OF_SPRITES
-.32c3	20 d6 32	jsr $32d6	loop            JSR ANIMSPRITE
-.32c6	8a		txa		                TXA
-.32c7	18		clc		                CLC
-.32c8	69 1f 00	adc #$001f	                ADC #size(SPRITE)
-.32cb	aa		tax		                TAX
-.32cc	e0 63 20	cpx #$2063	                CPX #<>END_OF_SPRITES
-.32cf	d0 f2		bne $32c3	                BNE loop
-.32d1	28		plp		done            PLP
-.32d2	60		rts		                RTS
-.32d3	6c 13 20	jmp ($2013)	DISPATCH        JMP (INDPROC)
-.32d6					ANIMSPRITE
-.32d6	08		php		                PHP
-.32d7	08		php		            PHP
-.32d8	e2 20		sep #$20	            SEP #$20
-.32da	48		pha		            PHA
-.32db	a9 00		lda #$00	            LDA #0
-.32dd	48		pha		            PHA
-.32de	ab		plb		            PLB
-.32df	68		pla		            PLA
-.32e0	28		plp		            PLP
-.32e1	08		php		            PHP
-.32e2	c2 20		rep #$20	            REP #$20
-.32e4	48		pha		            PHA
-.32e5	a9 00 20	lda #$2000	            LDA #SRCPTR
-.32e8	5b		tcd		            TCD
-.32e9	68		pla		            PLA
-.32ea	28		plp		            PLP
-.32eb	e2 20		sep #$20	            SEP #$20
-.32ed	bd 1e 00	lda $001e,x	                LDA SPRITE.STATUS,X         ; Check if the sprite is active
-.32f0	10 4a		bpl $333c	                BPL done                    ; NO: there is no need to animate
-.32f2	c2 30		rep #$30	            REP #$30
-.32f4	bd 1c 00	lda $001c,x	                LDA SPRITE.ANIMPROC,X       ; Get the address of this sprite's animation routine
-.32f7	f0 05		beq $32fe	                BEQ do_frame                ; If it's NULL, just do the default stuff
-.32f9	85 13		sta $2013	                STA INDPROC                 ; Save it to the dispatch pointer
-.32fb	20 d3 32	jsr $32d3	                JSR DISPATCH                ; And call it
-.32fe	bd 10 00	lda $0010,x	do_frame        LDA SPRITE.FRAME,X          ; Get the current frame number
-.3301	30 39		bmi $333c	                BMI done                    ; If it's negative, the sprite is inactive
-.3303	de 14 00	dec $0014,x	                DEC SPRITE.FRAMEDELAY,X     ; Decrement the frame delay counter
-.3306	d0 15		bne $331d	                BNE frame_done              ; If it's not zero, we don't change the frame
-.3308	bd 16 00	lda $0016,x	                LDA SPRITE.DELAYDEFAULT,X   ; Reset the frame delay counter
-.330b	9d 14 00	sta $0014,x	                STA SPRITE.FRAMEDELAY,X
-.330e	bd 10 00	lda $0010,x	                LDA SPRITE.FRAME,X          ; Get the current frame number
-.3311	1a		inc a		                INC A                       ; Go to the next frame
-.3312	dd 12 00	cmp $0012,x	                CMP SPRITE.FRAMECOUNT,X     ; Check to see if we've reached the limit
-.3315	d0 03		bne $331a	                BNE set_frame
-.3317	a9 00 00	lda #$0000	                LDA #0                      ; Yes: return to frame 0
-.331a	9d 10 00	sta $0010,x	set_frame       STA SPRITE.FRAME,X          ; Set the frame
-.331d					frame_done
-.331d	de 18 00	dec $0018,x	                DEC SPRITE.MOVEDELAY,X      ; Decrement the movement delay counter
-.3320	d0 1a		bne $333c	                BNE done                    ; If it's not zero, we don't move the sprite
-.3322	bd 1a 00	lda $001a,x	                LDA SPRITE.MOVEDELDEF,X     ; Reset the movement delay counter
-.3325	9d 18 00	sta $0018,x	                STA SPRITE.MOVEDELAY,X
-.3328	18		clc		                CLC                         ; X := X + DX
-.3329	bd 04 00	lda $0004,x	                LDA SPRITE.DX,X
-.332c	7d 00 00	adc $0000,x	                ADC SPRITE.X,X
-.332f	9d 00 00	sta $0000,x	                STA SPRITE.X,X
-.3332	18		clc		update_y        CLC                         ; Y := Y + DY
-.3333	bd 06 00	lda $0006,x	                LDA SPRITE.DY,X
-.3336	7d 02 00	adc $0002,x	                ADC SPRITE.Y,X
-.3339	9d 02 00	sta $0002,x	                STA SPRITE.Y,X
-.333c	78		sei		done            SEI                         ; Flag that the sprite needs to be updated in Vicky
-.333d	e2 20		sep #$20	            SEP #$20
-.333f	a9 60		lda #$60	                LDA #SP_STAT_UPDATE
-.3341	1d 1e 00	ora $001e,x	                ORA SPRITE.STATUS,X
-.3344	9d 1e 00	sta $001e,x	                STA SPRITE.STATUS,X
-.3347	28		plp		                PLP
-.3348	60		rts		                RTS
-.3349					UPDATE
-.3349	08		php		                PHP
-.334a	c2 30		rep #$30	            REP #$30
-.334c	a2 25 20	ldx #$2025	                LDX #<>START_OF_SPRITES
-.334f	20 5f 33	jsr $335f	loop            JSR UPDATESPRITE
-.3352	8a		txa		                TXA
-.3353	18		clc		                CLC
-.3354	69 1f 00	adc #$001f	                ADC #size(SPRITE)
-.3357	aa		tax		                TAX
-.3358	e0 63 20	cpx #$2063	                CPX #<>END_OF_SPRITES
-.335b	d0 f2		bne $334f	                BNE loop
-.335d	28		plp		done            PLP
-.335e	60		rts		                RTS
-.335f					UPDATESPRITE
-.335f	08		php		                PHP
-.3360	08		php		            PHP
-.3361	e2 20		sep #$20	            SEP #$20
-.3363	48		pha		            PHA
-.3364	a9 00		lda #$00	            LDA #0
-.3366	48		pha		            PHA
-.3367	ab		plb		            PLB
-.3368	68		pla		            PLA
-.3369	28		plp		            PLP
-.336a	08		php		            PHP
-.336b	c2 20		rep #$20	            REP #$20
-.336d	48		pha		            PHA
-.336e	a9 00 20	lda #$2000	            LDA #SRCPTR
-.3371	5b		tcd		            TCD
-.3372	68		pla		            PLA
-.3373	28		plp		            PLP
-.3374	c2 30		rep #$30	            REP #$30
-.3376	bd 10 00	lda $0010,x	                LDA SPRITE.FRAME,X          ; Get the current frame number
-.3379	30 66		bmi $33e1	                BMI done                    ; If it's negative, the sprite is inactive
-.337b	bd 0a 00	lda $000a,x	                LDA SPRITE.SPRITEADDR,X     ; TMPPTR := pointer to the sprite's registers in Vicky
-.337e	85 20		sta $2020	                STA REGPTR
-.3380	a9 af 00	lda #$00af	                LDA #`SP00_CONTROL_REG
-.3383	85 22		sta $2022	                STA REGPTR+2
-.3385	64 0a		stz $200a	                STZ TEMP
-.3387	64 0c		stz $200c	                STZ TEMP+2
-.3389	bd 00 00	lda $0000,x	                LDA SPRITE.X,X          ; Set the X position of the sprite
-.338c	a0 04 00	ldy #$0004	                LDY #SP_OFF_X
-.338f	97 20		sta [$2020],y	                STA [REGPTR],Y
-.3391	bd 02 00	lda $0002,x	                LDA SPRITE.Y,X          ; Set the Y position of the sprite
-.3394	a0 06 00	ldy #$0006	                LDY #SP_OFF_Y
-.3397	97 20		sta [$2020],y	                STA [REGPTR],Y
-.3399	bd 10 00	lda $0010,x	                LDA SPRITE.FRAME,X      ; Get the animation frame's offset into TEMP
-.339c	85 0a		sta $200a	                STA TEMP
-.339e	06 0a		asl $200a	                ASL TEMP
-.33a0	26 0c		rol $200c	                ROL TEMP+2
-.33a2	06 0a		asl $200a	                ASL TEMP
-.33a4	26 0c		rol $200c	                ROL TEMP+2
-.33a6	06 0a		asl $200a	                ASL TEMP
-.33a8	26 0c		rol $200c	                ROL TEMP+2
-.33aa	06 0a		asl $200a	                ASL TEMP
-.33ac	26 0c		rol $200c	                ROL TEMP+2
-.33ae	06 0a		asl $200a	                ASL TEMP
-.33b0	26 0c		rol $200c	                ROL TEMP+2
-.33b2	06 0a		asl $200a	                ASL TEMP
-.33b4	26 0c		rol $200c	                ROL TEMP+2
-.33b6	06 0a		asl $200a	                ASL TEMP
-.33b8	26 0c		rol $200c	                ROL TEMP+2
-.33ba	06 0a		asl $200a	                ASL TEMP
-.33bc	26 0c		rol $200c	                ROL TEMP+2
-.33be	06 0a		asl $200a	                ASL TEMP
-.33c0	26 0c		rol $200c	                ROL TEMP+2
-.33c2	06 0a		asl $200a	                ASL TEMP
-.33c4	26 0c		rol $200c	                ROL TEMP+2
-.33c6	18		clc		                CLC
-.33c7	bd 0c 00	lda $000c,x	                LDA SPRITE.BASEADDR,X   ; Add the base address of the animation frames
-.33ca	65 0a		adc $200a	                ADC TEMP
-.33cc	a0 01 00	ldy #$0001	                LDY #SP_OFF_ADDR
-.33cf	97 20		sta [$2020],y	                STA [REGPTR],Y
-.33d1	85 0a		sta $200a	                STA TEMP
-.33d3	e2 20		sep #$20	            SEP #$20
-.33d5	bd 0e 00	lda $000e,x	                LDA SPRITE.BASEADDR+2,X
-.33d8	65 0c		adc $200c	                ADC TEMP+2
-.33da	85 0c		sta $200c	                STA TEMP+2
-.33dc	a0 03 00	ldy #$0003	                LDY #SP_OFF_ADDR+2
-.33df	97 20		sta [$2020],y	                STA [REGPTR],Y          ; And set the address of the sprite pixmap
-.33e1	28		plp		done            PLP
-.33e2	60		rts		                RTS
-.33e3					LOADRSRC
-.33e3	08		php		                PHP
-.33e4	c2 30		rep #$30	            REP #$30
-.33e6	a9 00 00	lda #$0000	                LDA #<>SHIP_STATIONARY  ; Set source address to RLE data of the ship pointing up
-.33e9	85 00		sta $2000	                STA SRCPTR
-.33eb	a9 11 00	lda #$0011	                LDA #`SHIP_STATIONARY
-.33ee	85 02		sta $2002	                STA SRCPTR+2
-.33f0	a9 00 00	lda #$0000	                LDA #<>VSHIP_STILL      ; Set the destination address to the location in VRAM where the sprite should be
-.33f3	85 04		sta $2004	                STA DSTPTR
-.33f5	a9 b0 00	lda #$00b0	                LDA #`VSHIP_STILL
-.33f8	85 06		sta $2006	                STA DSTPTR+2
-.33fa	20 50 34	jsr $3450	                JSR EXPANDRLE           ; And expand the RLE data into VRAM
-.33fd	a9 70 02	lda #$0270	                LDA #<>SHIP_UP          ; Set source address to RLE data of the ship pointing up
-.3400	85 00		sta $2000	                STA SRCPTR
-.3402	a9 11 00	lda #$0011	                LDA #`SHIP_UP
-.3405	85 02		sta $2002	                STA SRCPTR+2
-.3407	a9 00 04	lda #$0400	                LDA #<>VSHIP_UP         ; Set the destination address to the location in VRAM where the sprite should be
-.340a	85 04		sta $2004	                STA DSTPTR
-.340c	a9 b0 00	lda #$00b0	                LDA #`VSHIP_UP
-.340f	85 06		sta $2006	                STA DSTPTR+2
-.3411	20 50 34	jsr $3450	                JSR EXPANDRLE           ; And expand the RLE data into VRAM
-.3414	a9 a6 14	lda #$14a6	                LDA #<>TORPEDO_START    ; Set source address to RLE data of the torpedo
-.3417	85 00		sta $2000	                STA SRCPTR
-.3419	a9 11 00	lda #$0011	                LDA #`TORPEDO_START
-.341c	85 02		sta $2002	                STA SRCPTR+2
-.341e	a9 00 18	lda #$1800	                LDA #<>VTORPEDO         ; Set the destination address to the location in VRAM where the sprite should be
-.3421	85 04		sta $2004	                STA DSTPTR
-.3423	a9 b0 00	lda #$00b0	                LDA #`VTORPEDO
-.3426	85 06		sta $2006	                STA DSTPTR+2
-.3428	20 50 34	jsr $3450	                JSR EXPANDRLE           ; And expand the RLE data into VRAM
-.342b	a9 46 0f	lda #$0f46	                LDA #<>STARS_START      ; Set source address to RLE data of the star field
-.342e	85 00		sta $2000	                STA SRCPTR
-.3430	a9 11 00	lda #$0011	                LDA #`STARS_START
-.3433	85 02		sta $2002	                STA SRCPTR+2
-.3435	a9 00 38	lda #$3800	                LDA #<>VSTARS           ; Set the destination address to the location in VRAM where the star field should be
-.3438	85 04		sta $2004	                STA DSTPTR
-.343a	a9 b0 00	lda #$00b0	                LDA #`VSTARS
-.343d	85 06		sta $2006	                STA DSTPTR+2
-.343f	20 50 34	jsr $3450	                JSR EXPANDRLE           ; And expand the RLE data into VRAM
-.3442	a2 a1 36	ldx #$36a1	                LDX #<>LUT_START        ; Copy the color pallette to Vicky
-.3445	a0 00 24	ldy #$2400	                LDY #<>GRPH_LUT1_PTR
-.3448	a9 00 04	lda #$0400	                LDA #256 * 4
-.344b	54 af 00	mvn $00,$af	                MVN `LUT_START,`GRPH_LUT1_PTR
-.344e	28		plp		                PLP
-.344f	60		rts		                RTS
-.3450					EXPANDRLE
-.3450	08		php		                PHP
-.3451	e2 20		sep #$20	            SEP #$20
-.3453	64 08		stz $2008	                STZ COUNT           ; Make sure COUNT is in a known good state
-.3455	64 09		stz $2009	                STZ COUNT+1
-.3457	a0 00 00	ldy #$0000	pair_loop       LDY #0
-.345a	b7 00		lda [$2000],y	                LDA [SRCPTR],Y      ; Get the count of bytes to transfer
-.345c	f0 32		beq $3490	                BEQ done            ; If it's zero, we're done
-.345e	85 08		sta $2008	                STA COUNT           ; And save it to the count variable
-.3460	c8		iny		                INY
-.3461	b7 00		lda [$2000],y	                LDA [SRCPTR],Y      ; Get the byte to copy over
-.3463	a0 00 00	ldy #$0000	                LDY #0
-.3466	97 04		sta [$2004],y	write_loop      STA [DSTPTR],Y      ; And write it to the destination
-.3468	c8		iny		                INY
-.3469	c4 08		cpy $2008	                CPY COUNT           ; Have we reached the end?
-.346b	d0 f9		bne $3466	                BNE write_loop      ; No: keep writing it
-.346d	c2 20		rep #$20	            REP #$20
-.346f	18		clc		                CLC                 ; Advance the destination pointer
-.3470	a5 04		lda $2004	                LDA DSTPTR
-.3472	65 08		adc $2008	                ADC COUNT
-.3474	85 04		sta $2004	                STA DSTPTR
-.3476	a5 06		lda $2006	                LDA DSTPTR+2
-.3478	69 00 00	adc #$0000	                ADC #0
-.347b	85 06		sta $2006	                STA DSTPTR+2
-.347d	18		clc		                CLC                 ; Advance the srouce pointer to the next pair
-.347e	a5 00		lda $2000	                LDA SRCPTR
-.3480	69 02 00	adc #$0002	                ADC #2
-.3483	85 00		sta $2000	                STA SRCPTR
-.3485	a5 02		lda $2002	                LDA SRCPTR+2
-.3487	69 00 00	adc #$0000	                ADC #0
-.348a	85 02		sta $2002	                STA SRCPTR+2
-.348c	e2 20		sep #$20	            SEP #$20
-.348e	80 c7		bra $3457	                BRA pair_loop       ; And check it
-.3490	28		plp		done            PLP
-.3491	60		rts		                RTS
+.322a	48		pha		            PHA
+.322b	a9 00 20	lda #$2000	            LDA #SRCPTR
+.322e	5b		tcd		            TCD
+.322f	68		pla		            PLA
+.3230	28		plp		            PLP
+.3231	c2 30		rep #$30	            REP #$30
+.3233	a2 25 20	ldx #$2025	                LDX #<>START_OF_SPRITES
+.3236	a9 00 02	lda #$0200	                LDA #<>SP00_CONTROL_REG
+.3239	9d 0a 00	sta $000a,x	loop            STA SPRITE.SPRITEADDR,X         ; Set the address of the hardware sprite registers
+.323c	18		clc		                CLC                             ; Point to the next hardware sprite register set
+.323d	69 08 00	adc #$0008	                ADC #8                          ; <>(SP01_CONTROL_REG - SP00_CONTROL_REG)
+.3240	85 0a		sta $200a	                STA TEMP                        ; Save the address to temporary
+.3242	9e 00 00	stz $0000,x	                STZ SPRITE.X,X                  ; Zero out most of the parameters
+.3245	9e 02 00	stz $0002,x	                STZ SPRITE.Y,X
+.3248	9e 04 00	stz $0004,x	                STZ SPRITE.DX,X
+.324b	9e 06 00	stz $0006,x	                STZ SPRITE.DY,X
+.324e	9e 0c 00	stz $000c,x	                STZ SPRITE.BASEADDR,X
+.3251	9e 0e 00	stz $000e,x	                STZ SPRITE.BASEADDR+2,X
+.3254	9e 10 00	stz $0010,x	                STZ SPRITE.FRAME,X
+.3257	9e 12 00	stz $0012,x	                STZ SPRITE.FRAMECOUNT,X
+.325a	9e 14 00	stz $0014,x	                STZ SPRITE.FRAMEDELAY,X
+.325d	9e 16 00	stz $0016,x	                STZ SPRITE.DELAYDEFAULT,X
+.3260	9e 18 00	stz $0018,x	                STZ SPRITE.MOVEDELAY,X
+.3263	9e 1a 00	stz $001a,x	                STZ SPRITE.MOVEDELDEF,X
+.3266	9e 1c 00	stz $001c,x	                STZ SPRITE.ANIMPROC,X
+.3269	e2 20		sep #$20	            SEP #$20
+.326b	9e 1e 00	stz $001e,x	                STZ SPRITE.STATUS,X             ; Set status to 0
+.326e	c2 20		rep #$20	            REP #$20
+.3270	8a		txa		                TXA                             ; Point to the next sprite record
+.3271	18		clc		                CLC
+.3272	69 1f 00	adc #$001f	                ADC #SIZE(SPRITE)
+.3275	aa		tax		                TAX
+.3276	a5 0a		lda $200a	                LDA TEMP                        ; Get the address of the next sprite register block
+.3278	e0 82 20	cpx #$2082	                CPX #<>END_OF_SPRITES           ; Check to see if we've reached the end
+.327b	d0 bc		bne $3239	                BNE loop                        ; No: keep initializing
+.327d	28		plp		                PLP
+.327e	60		rts		                RTS
+.327f					FINDSPRITE
+.327f	08		php		                PHP
+.3280	a2 63 20	ldx #$2063	                LDX #<>START_POOL
+.3283					loop
+.3283	e2 20		sep #$20	            SEP #$20
+.3285	bd 1e 00	lda $001e,x	                LDA SPRITE.STATUS,X         ; Get the sprite's status
+.3288	10 10		bpl $329a	                BPL ret_true                ; If ACTIVE not set, we've got one
+.328a	c2 20		rep #$20	            REP #$20
+.328c	8a		txa		                TXA
+.328d	18		clc		                CLC
+.328e	69 1f 00	adc #$001f	                ADC #SIZE(SPRITE)
+.3291	aa		tax		                TAX
+.3292	e0 82 20	cpx #$2082	                CPX #<>END_OF_SPRITES       ; Have we checked all records?
+.3295	d0 ec		bne $3283	                BNE loop                    ; No: keep checking
+.3297	28		plp		ret_false       PLP                         ; Return that we could not find a free sprite
+.3298	18		clc		                CLC
+.3299	60		rts		                RTS
+.329a	28		plp		ret_true        PLP                         ; Return that we found a free sprite
+.329b	38		sec		                SEC
+.329c	60		rts		                RTS
 
 ;******  Processing file: src\interrupts.s
 
-.3492					INITIRQ
-.3492	08		php		                PHP
-.3493	c2 20		rep #$20	            REP #$20
-.3495	ad ee ff	lda $ffee	                LDA HIRQ                    ; Save the old interrupt handler
-.3498	85 11		sta $2011	                STA OLDIRQ
-.349a	a9 b2 34	lda #$34b2	                LDA #<>HANDLEIRQ            ; Take control of the IRQ vector
-.349d	8d ee ff	sta $ffee	                STA HIRQ
-.34a0	e2 20		sep #$20	            SEP #$20
-.34a2	a9 4c		lda #$4c	                LDA #$4C                    ; JMP opcode
-.34a4	85 10		sta $2010	                STA JMPOPCODE               ; Save it for jumps
-.34a6	af 4c 01 00	lda $00014c	                LDA @lINT_MASK_REG0         ; Enable SOF interrupts
-.34aa	29 fe		and #$fe	                AND #~FNX0_INT00_SOF
-.34ac	8f 4c 01 00	sta $00014c	                STA @lINT_MASK_REG0
-.34b0	28		plp		                PLP
-.34b1	60		rts		                RTS
-.34b2					HANDLEIRQ
-.34b2	c2 30		rep #$30	            REP #$30
-.34b4	8b		phb		                PHB
-.34b5	0b		phd		                PHD
-.34b6	48		pha		                PHA
-.34b7	da		phx		                PHX
-.34b8	5a		phy		                PHY
-.34b9	08		php		                PHP
-.34ba	e2 20		sep #$20	            SEP #$20
-.34bc	af 40 01 00	lda $000140	                LDA @lINT_PENDING_REG0
-.34c0	c9 00		cmp #$00	                CMP #$00
-.34c2	f0 1a		beq $34de	                BEQ done
-.34c4	af 40 01 00	lda $000140	                LDA @lINT_PENDING_REG0
-.34c8	29 01		and #$01	                AND #FNX0_INT00_SOF
-.34ca	c9 01		cmp #$01	                CMP #FNX0_INT00_SOF
-.34cc	d0 10		bne $34de	                BNE done
-.34ce	8f 40 01 00	sta $000140	                STA @lINT_PENDING_REG0
-.34d2	20 49 33	jsr $3349	                JSR UPDATE              ; Update all the active sprites that require an update
-.34d5	20 3f 35	jsr $353f	                JSR EXECTONE            ; Execute any pending tone instruction
-.34d8	e2 20		sep #$20	            SEP #$20
-.34da	a9 80		lda #$80	                LDA #ML_STAT_ANIMATE    ; Flag that we can update any active sprites
-.34dc	85 24		sta $2024	                STA STATUS
-.34de	28		plp		done            PLP
-.34df	7a		ply		                PLY
-.34e0	fa		plx		                PLX
-.34e1	68		pla		                PLA
-.34e2	2b		pld		                PLD
-.34e3	ab		plb		                PLB
-.34e4	4c 10 20	jmp $2010	                JMP JMPOPCODE           ; Go back to the original handler
+.329d					INITIRQ
+.329d	08		php		                PHP
+.329e	c2 20		rep #$20	            REP #$20
+.32a0	ad ee ff	lda $ffee	                LDA HIRQ                    ; Save the old interrupt handler
+.32a3	85 11		sta $2011	                STA OLDIRQ
+.32a5	a9 bd 32	lda #$32bd	                LDA #<>HANDLEIRQ            ; Take control of the IRQ vector
+.32a8	8d ee ff	sta $ffee	                STA HIRQ
+.32ab	e2 20		sep #$20	            SEP #$20
+.32ad	a9 4c		lda #$4c	                LDA #$4C                    ; JMP opcode
+.32af	85 10		sta $2010	                STA JMPOPCODE               ; Save it for jumps
+.32b1	af 4c 01 00	lda $00014c	                LDA @lINT_MASK_REG0         ; Enable SOF interrupts
+.32b5	29 fe		and #$fe	                AND #~FNX0_INT00_SOF
+.32b7	8f 4c 01 00	sta $00014c	                STA @lINT_MASK_REG0
+.32bb	28		plp		                PLP
+.32bc	60		rts		                RTS
+.32bd					HANDLEIRQ
+.32bd	c2 30		rep #$30	            REP #$30
+.32bf	8b		phb		                PHB
+.32c0	0b		phd		                PHD
+.32c1	48		pha		                PHA
+.32c2	da		phx		                PHX
+.32c3	5a		phy		                PHY
+.32c4	08		php		                PHP
+.32c5	e2 20		sep #$20	            SEP #$20
+.32c7	af 40 01 00	lda $000140	                LDA @lINT_PENDING_REG0
+.32cb	c9 00		cmp #$00	                CMP #$00
+.32cd	f0 1a		beq $32e9	                BEQ done
+.32cf	af 40 01 00	lda $000140	                LDA @lINT_PENDING_REG0
+.32d3	29 01		and #$01	                AND #FNX0_INT00_SOF
+.32d5	c9 01		cmp #$01	                CMP #FNX0_INT00_SOF
+.32d7	d0 10		bne $32e9	                BNE done
+.32d9	8f 40 01 00	sta $000140	                STA @lINT_PENDING_REG0
+.32dd	20 82 31	jsr $3182	                JSR UPDATE              ; Update all the active sprites that require an update
+.32e0	20 4a 33	jsr $334a	                JSR EXECTONE            ; Execute any pending tone instruction
+.32e3	e2 20		sep #$20	            SEP #$20
+.32e5	a9 80		lda #$80	                LDA #ML_STAT_ANIMATE    ; Flag that we can update any active sprites
+.32e7	85 24		sta $2024	                STA STATUS
+.32e9	28		plp		done            PLP
+.32ea	7a		ply		                PLY
+.32eb	fa		plx		                PLX
+.32ec	68		pla		                PLA
+.32ed	2b		pld		                PLD
+.32ee	ab		plb		                PLB
+.32ef	4c 10 20	jmp $2010	                JMP JMPOPCODE           ; Go back to the original handler
 
 ;******  Return to file: src\spaceship.s
 
@@ -1215,503 +991,888 @@
 >0004					SUSTAIN         .byte ?     ; The sustain level (attenuation value)
 >0005					RELEASE         .byte ?     ; The release rate (attenuation values per tick)
 >0006					ATTENUATION     .byte ?     ; The current attenuation value
->2063					TONECOUNT       .word ?                 ; Delay counter for executing instructions (if negative, to not execute tone instructions)
->2065					TONEPTR         .dword ?                ; Pointer to tone instruction to execute
-.2069					CH0_ENV
->2069					CHANNEL         .byte ?     ; Channel code appropriate for sending commands 00000000, 00100000, 01000000
->206a					STATE           .byte ?     ; The current state of the envelope: silent, attack, decay, sustain, release
->206b					ATTACK          .byte ?     ; The attack rate (attenuation values per tick)
->206c					DECAY           .byte ?     ; The decay rate (attenuation values per tick)
->206d					SUSTAIN         .byte ?     ; The sustain level (attenuation value)
->206e					RELEASE         .byte ?     ; The release rate (attenuation values per tick)
->206f					ATTENUATION     .byte ?     ; The current attenuation value
-.34e7					INITTONE
-.34e7	08		php		                PHP
-.34e8	c2 20		rep #$20	            REP #$20
-.34ea	a9 ff ff	lda #$ffff	                LDA #$FFFF              ; By default we play nothing
-.34ed	85 63		sta $2063	                STA TONECOUNT
-.34ef	64 65		stz $2065	                STZ TONEPTR             ; Point to nothing
-.34f1	64 67		stz $2067	                STZ TONEPTR+2
-.34f3	e2 20		sep #$20	            SEP #$20
-.34f5	a9 80		lda #$80	                LDA #$80                ; Shut off voice 0
-.34f7	8f 00 f1 af	sta $aff100	                STA @l SN76489
-.34fb	a9 00		lda #$00	                LDA #$00
-.34fd	8f 00 f1 af	sta $aff100	                STA @l SN76489
-.3501	a9 9f		lda #$9f	                LDA #$9F
-.3503	8f 00 f1 af	sta $aff100	                STA @l SN76489
-.3507	a9 a0		lda #$a0	                LDA #$A0                ; Shut off voice 1
-.3509	8f 00 f1 af	sta $aff100	                STA @l SN76489
-.350d	a9 00		lda #$00	                LDA #$00
-.350f	8f 00 f1 af	sta $aff100	                STA @l SN76489
-.3513	a9 bf		lda #$bf	                LDA #$BF
-.3515	8f 00 f1 af	sta $aff100	                STA @l SN76489
-.3519	a9 c0		lda #$c0	                LDA #$C0                ; Shut off voice 2
-.351b	8f 00 f1 af	sta $aff100	                STA @l SN76489
-.351f	a9 00		lda #$00	                LDA #$00
-.3521	8f 00 f1 af	sta $aff100	                STA @l SN76489
-.3525	a9 df		lda #$df	                LDA #$DF
-.3527	8f 00 f1 af	sta $aff100	                STA @l SN76489
-.352b	64 69		stz $2069	                STZ CH0_ENV.CHANNEL     ; Set the channel code for the envelope
-.352d	64 6a		stz $206a	                STZ CH0_ENV.STATE       ; Set the state to silence
-.352f	a9 04		lda #$04	                LDA #$04                ; Initialize the envelope to something ordinary
-.3531	85 6b		sta $206b	                STA CH0_ENV.ATTACK
-.3533	85 6c		sta $206c	                STA CH0_ENV.DECAY
-.3535	a9 01		lda #$01	                LDA #$01
-.3537	85 6e		sta $206e	                STA CH0_ENV.RELEASE
-.3539	a9 05		lda #$05	                LDA #$05
-.353b	85 6d		sta $206d	                STA CH0_ENV.SUSTAIN
-.353d	28		plp		                PLP
-.353e	60		rts		                RTS
-.353f					EXECTONE
-.353f	48		pha		                PHA
-.3540	da		phx		                PHX
-.3541	5a		phy		                PHY
-.3542	08		php		                PHP
-.3543	c2 10		rep #$10	            REP #$10
-.3545	a2 69 20	ldx #$2069	                LDX #<>CH0_ENV          ; Process the envelope on channel 0
-.3548	20 30 36	jsr $3630	                JSR PROCESSENV
-.354b	c2 20		rep #$20	            REP #$20
-.354d	a5 63		lda $2063	                LDA TONECOUNT           ; Check the tone counter
-.354f	f0 1f		beq $3570	                BEQ get_opcode          ; If it's 0, get the opcode
-.3551	10 03		bpl $3556	                BPL tick_down           ; If it's positive, we need to decrement
-.3553	82 15 00	brl $356b	                BRL done                ; If it's negative, we shouldn't do anything
-.3556	c6 63		dec $2063	tick_down       DEC TONECOUNT           ; Decrement the wait counter
-.3558	d0 11		bne $356b	                BNE done                ; If it's not zero, keep waiting
-.355a					advance
-.355a	c2 20		rep #$20	            REP #$20
-.355c	18		clc		                CLC                     ; Advance the TONEPTR to the next instruction
-.355d	a5 65		lda $2065	                LDA TONEPTR
-.355f	69 03 00	adc #$0003	                ADC #3
-.3562	85 65		sta $2065	                STA TONEPTR
-.3564	a5 67		lda $2067	                LDA TONEPTR+2
-.3566	69 00 00	adc #$0000	                ADC #0
-.3569	85 67		sta $2067	                STA TONEPTR+2
-.356b	28		plp		done            PLP
-.356c	7a		ply		                PLY
-.356d	fa		plx		                PLX
-.356e	68		pla		                PLA
-.356f	60		rts		                RTS
-.3570					get_opcode
-.3570	e2 20		sep #$20	            SEP #$20
-.3572	a0 00 00	ldy #$0000	                LDY #0
-.3575	b7 65		lda [$2065],y	                LDA [TONEPTR],Y         ; Get the opcode
-.3577	29 0f		and #$0f	                AND #$0F                ; Filter to just the opcode bits
-.3579	f0 6e		beq $35e9	                BEQ do_finish           ; If it's 0, we're done playing the sounds
-.357b	c9 01		cmp #$01	                CMP #TONE_SET_ATTEN     ; Is it SET_ATTENUATE
-.357d	f0 25		beq $35a4	                BEQ do_atten
-.357f	c9 02		cmp #$02	                CMP #TONE_SET_FREQ      ; Is it SET_FREQ
-.3581	f0 3b		beq $35be	                BEQ do_freq
-.3583	c9 03		cmp #$03	                CMP #TONE_WAIT          ; Is it WAIT?
-.3585	f0 12		beq $3599	                BEQ do_wait
-.3587	c9 04		cmp #$04	                CMP #TONE_SET_ENV       ; Is it SET ENVELOPE?
-.3589	f0 68		beq $35f3	                BEQ do_set_adsr
-.358b	c9 05		cmp #$05	                CMP #TONE_START_ENV     ; Start processing an envelope
-.358d	d0 03		bne $3592	                BNE chk_release
-.358f	82 88 00	brl $361a	                BRL do_start
-.3592	c9 06		cmp #$06	chk_release     CMP #TONE_RELEASE       ; Is it RELEASE?
-.3594	d0 c4		bne $355a	                BNE advance             ; Otherwise, just skip
-.3596	82 8e 00	brl $3627	                BRL do_release
-.3599					do_wait
+>2082					TONECOUNT       .word ?                 ; Delay counter for executing instructions (if negative, to not execute tone instructions)
+>2084					TONEPTR         .dword ?                ; Pointer to tone instruction to execute
+.2088					CH0_ENV
+>2088					CHANNEL         .byte ?     ; Channel code appropriate for sending commands 00000000, 00100000, 01000000
+>2089					STATE           .byte ?     ; The current state of the envelope: silent, attack, decay, sustain, release
+>208a					ATTACK          .byte ?     ; The attack rate (attenuation values per tick)
+>208b					DECAY           .byte ?     ; The decay rate (attenuation values per tick)
+>208c					SUSTAIN         .byte ?     ; The sustain level (attenuation value)
+>208d					RELEASE         .byte ?     ; The release rate (attenuation values per tick)
+>208e					ATTENUATION     .byte ?     ; The current attenuation value
+.32f2					INITTONE
+.32f2	08		php		                PHP
+.32f3	c2 20		rep #$20	            REP #$20
+.32f5	a9 ff ff	lda #$ffff	                LDA #$FFFF              ; By default we play nothing
+.32f8	85 82		sta $2082	                STA TONECOUNT
+.32fa	64 84		stz $2084	                STZ TONEPTR             ; Point to nothing
+.32fc	64 86		stz $2086	                STZ TONEPTR+2
+.32fe	e2 20		sep #$20	            SEP #$20
+.3300	a9 80		lda #$80	                LDA #$80                ; Shut off voice 0
+.3302	8f 00 f1 af	sta $aff100	                STA @l SN76489
+.3306	a9 00		lda #$00	                LDA #$00
+.3308	8f 00 f1 af	sta $aff100	                STA @l SN76489
+.330c	a9 9f		lda #$9f	                LDA #$9F
+.330e	8f 00 f1 af	sta $aff100	                STA @l SN76489
+.3312	a9 a0		lda #$a0	                LDA #$A0                ; Shut off voice 1
+.3314	8f 00 f1 af	sta $aff100	                STA @l SN76489
+.3318	a9 00		lda #$00	                LDA #$00
+.331a	8f 00 f1 af	sta $aff100	                STA @l SN76489
+.331e	a9 bf		lda #$bf	                LDA #$BF
+.3320	8f 00 f1 af	sta $aff100	                STA @l SN76489
+.3324	a9 c0		lda #$c0	                LDA #$C0                ; Shut off voice 2
+.3326	8f 00 f1 af	sta $aff100	                STA @l SN76489
+.332a	a9 00		lda #$00	                LDA #$00
+.332c	8f 00 f1 af	sta $aff100	                STA @l SN76489
+.3330	a9 df		lda #$df	                LDA #$DF
+.3332	8f 00 f1 af	sta $aff100	                STA @l SN76489
+.3336	64 88		stz $2088	                STZ CH0_ENV.CHANNEL     ; Set the channel code for the envelope
+.3338	64 89		stz $2089	                STZ CH0_ENV.STATE       ; Set the state to silence
+.333a	a9 04		lda #$04	                LDA #$04                ; Initialize the envelope to something ordinary
+.333c	85 8a		sta $208a	                STA CH0_ENV.ATTACK
+.333e	85 8b		sta $208b	                STA CH0_ENV.DECAY
+.3340	a9 01		lda #$01	                LDA #$01
+.3342	85 8d		sta $208d	                STA CH0_ENV.RELEASE
+.3344	a9 05		lda #$05	                LDA #$05
+.3346	85 8c		sta $208c	                STA CH0_ENV.SUSTAIN
+.3348	28		plp		                PLP
+.3349	60		rts		                RTS
+.334a					EXECTONE
+.334a	48		pha		                PHA
+.334b	da		phx		                PHX
+.334c	5a		phy		                PHY
+.334d	08		php		                PHP
+.334e	c2 10		rep #$10	            REP #$10
+.3350	a2 88 20	ldx #$2088	                LDX #<>CH0_ENV          ; Process the envelope on channel 0
+.3353	20 3b 34	jsr $343b	                JSR PROCESSENV
+.3356	c2 20		rep #$20	            REP #$20
+.3358	a5 82		lda $2082	                LDA TONECOUNT           ; Check the tone counter
+.335a	f0 1f		beq $337b	                BEQ get_opcode          ; If it's 0, get the opcode
+.335c	10 03		bpl $3361	                BPL tick_down           ; If it's positive, we need to decrement
+.335e	82 15 00	brl $3376	                BRL done                ; If it's negative, we shouldn't do anything
+.3361	c6 82		dec $2082	tick_down       DEC TONECOUNT           ; Decrement the wait counter
+.3363	d0 11		bne $3376	                BNE done                ; If it's not zero, keep waiting
+.3365					advance
+.3365	c2 20		rep #$20	            REP #$20
+.3367	18		clc		                CLC                     ; Advance the TONEPTR to the next instruction
+.3368	a5 84		lda $2084	                LDA TONEPTR
+.336a	69 03 00	adc #$0003	                ADC #3
+.336d	85 84		sta $2084	                STA TONEPTR
+.336f	a5 86		lda $2086	                LDA TONEPTR+2
+.3371	69 00 00	adc #$0000	                ADC #0
+.3374	85 86		sta $2086	                STA TONEPTR+2
+.3376	28		plp		done            PLP
+.3377	7a		ply		                PLY
+.3378	fa		plx		                PLX
+.3379	68		pla		                PLA
+.337a	60		rts		                RTS
+.337b					get_opcode
+.337b	e2 20		sep #$20	            SEP #$20
+.337d	a0 00 00	ldy #$0000	                LDY #0
+.3380	b7 84		lda [$2084],y	                LDA [TONEPTR],Y         ; Get the opcode
+.3382	29 0f		and #$0f	                AND #$0F                ; Filter to just the opcode bits
+.3384	f0 6e		beq $33f4	                BEQ do_finish           ; If it's 0, we're done playing the sounds
+.3386	c9 01		cmp #$01	                CMP #TONE_SET_ATTEN     ; Is it SET_ATTENUATE
+.3388	f0 25		beq $33af	                BEQ do_atten
+.338a	c9 02		cmp #$02	                CMP #TONE_SET_FREQ      ; Is it SET_FREQ
+.338c	f0 3b		beq $33c9	                BEQ do_freq
+.338e	c9 03		cmp #$03	                CMP #TONE_WAIT          ; Is it WAIT?
+.3390	f0 12		beq $33a4	                BEQ do_wait
+.3392	c9 04		cmp #$04	                CMP #TONE_SET_ENV       ; Is it SET ENVELOPE?
+.3394	f0 68		beq $33fe	                BEQ do_set_adsr
+.3396	c9 05		cmp #$05	                CMP #TONE_START_ENV     ; Start processing an envelope
+.3398	d0 03		bne $339d	                BNE chk_release
+.339a	82 88 00	brl $3425	                BRL do_start
+.339d	c9 06		cmp #$06	chk_release     CMP #TONE_RELEASE       ; Is it RELEASE?
+.339f	d0 c4		bne $3365	                BNE advance             ; Otherwise, just skip
+.33a1	82 8e 00	brl $3432	                BRL do_release
+.33a4					do_wait
+.33a4	c2 20		rep #$20	            REP #$20
+.33a6	a0 01 00	ldy #$0001	                LDY #1                  ; We need to set the TONECOUNT
+.33a9	b7 84		lda [$2084],y	                LDA [TONEPTR],Y
+.33ab	85 82		sta $2082	                STA TONECOUNT
+.33ad	80 c7		bra $3376	                BRA done                ; And return to caller
+.33af					do_atten
+.33af	e2 20		sep #$20	            SEP #$20
+.33b1	b7 84		lda [$2084],y	                LDA [TONEPTR],Y         ; Get the opcode
+.33b3	29 30		and #$30	                AND #%00110000          ; Filter out the channel number
+.33b5	0a		asl a		                ASL A                   ; Move it to the right spot
+.33b6	09 90		ora #$90	                ORA #%10010000          ; Turn it into a set attenuation instruction for the chip
+.33b8	85 0a		sta $200a	                STA TEMP                ; Save it for the moment
+.33ba	a0 01 00	ldy #$0001	                LDY #1                  ; Get the attenuation
+.33bd	b7 84		lda [$2084],y	                LDA [TONEPTR],Y
+.33bf	29 0f		and #$0f	                AND #$0F                ; Filter out any junk
+.33c1	05 0a		ora $200a	                ORA TEMP                ; Complete the instruction
+.33c3	8f 00 f1 af	sta $aff100	                STA @l SN76489          ; Send it to the sound chip
+.33c7	80 9c		bra $3365	                BRA advance             ; And go to the next instruction
+.33c9					do_freq
+.33c9	e2 20		sep #$20	            SEP #$20
+.33cb	b7 84		lda [$2084],y	                LDA [TONEPTR],Y         ; Get the opcode
+.33cd	29 30		and #$30	                AND #%00110000          ; Filter out the channel number
+.33cf	0a		asl a		                ASL A                   ; Move it to the right spot
+.33d0	09 80		ora #$80	                ORA #%10000000          ; Turn it into a set frequency instruction for the chip
+.33d2	85 0a		sta $200a	                STA TEMP                ; Save it for the moment
+.33d4	a0 01 00	ldy #$0001	                LDY #1                  ; Get the lower four bits of the frequency
+.33d7	b7 84		lda [$2084],y	                LDA [TONEPTR],Y
+.33d9	29 0f		and #$0f	                AND #$0F                ; Filter out the higher bits
+.33db	05 0a		ora $200a	                ORA TEMP                ; Complete the first byte of the instruction
+.33dd	8f 00 f1 af	sta $aff100	                STA @l SN76489          ; Send it to the sound chip
+.33e1	c2 20		rep #$20	            REP #$20
+.33e3	b7 84		lda [$2084],y	                LDA [TONEPTR],Y         ; Get all the bits of the frequency
+.33e5	4a		lsr a		                LSR A                   ; Drop the lower 4 bits
+.33e6	4a		lsr a		                LSR A
+.33e7	4a		lsr a		                LSR A
+.33e8	4a		lsr a		                LSR A
+.33e9	e2 20		sep #$20	            SEP #$20
+.33eb	29 3f		and #$3f	                AND #$3F                ; Filter it to 6 bits
+.33ed	8f 00 f1 af	sta $aff100	                STA @l SN76489          ; Send it to the sound chip
+.33f1	82 71 ff	brl $3365	                BRL advance             ; And go to the next instruction
+.33f4					do_finish
+.33f4	c2 20		rep #$20	            REP #$20
+.33f6	a9 ff ff	lda #$ffff	                LDA #$FFFF              ; Set the counter to -1
+.33f9	85 82		sta $2082	                STA TONECOUNT
+.33fb	82 78 ff	brl $3376	                BRL done
+.33fe					do_set_adsr
+.33fe	e2 20		sep #$20	            SEP #$20
+.3400	a0 01 00	ldy #$0001	                LDY #1
+.3403	b7 84		lda [$2084],y	                LDA [TONEPTR],Y         ; Get the sustain and release values
+.3405	29 0f		and #$0f	                AND #$0F
+.3407	85 8d		sta $208d	                STA CH0_ENV.RELEASE     ; Set release
+.3409	b7 84		lda [$2084],y	                LDA [TONEPTR],Y         ; Get the sustain and release values
+.340b	4a		lsr a		                LSR A
+.340c	4a		lsr a		                LSR A
+.340d	4a		lsr a		                LSR A
+.340e	4a		lsr a		                LSR A
+.340f	85 8c		sta $208c	                STA CH0_ENV.SUSTAIN     ; Set sustain
+.3411	a0 02 00	ldy #$0002	                LDY #2
+.3414	b7 84		lda [$2084],y	                LDA [TONEPTR],Y         ; Get the attack and decay values
+.3416	29 0f		and #$0f	                AND #$0F
+.3418	85 8b		sta $208b	                STA CH0_ENV.DECAY       ; Set decay
+.341a	b7 84		lda [$2084],y	                LDA [TONEPTR],Y         ; Get the attack and decay values
+.341c	4a		lsr a		                LSR A
+.341d	4a		lsr a		                LSR A
+.341e	4a		lsr a		                LSR A
+.341f	4a		lsr a		                LSR A
+.3420	85 8a		sta $208a	                STA CH0_ENV.ATTACK      ; Set attack
+.3422	82 40 ff	brl $3365	                BRL advance
+.3425					do_start
+.3425	e2 20		sep #$20	            SEP #$20
+.3427	a9 0f		lda #$0f	                LDA #$0F                ; Set the initial attenuation
+.3429	85 8e		sta $208e	                STA CH0_ENV.ATTENUATION
+.342b	a9 01		lda #$01	                LDA #TONE_STATE_ATK     ; Move the envelope into the ATTACK state
+.342d	85 89		sta $2089	                STA CH0_ENV.STATE
+.342f	82 33 ff	brl $3365	                BRL advance
+.3432					do_release
+.3432	e2 20		sep #$20	            SEP #$20
+.3434	a9 04		lda #$04	                LDA #TONE_STATE_REL     ; Move the envelope into the RELEASE state
+.3436	85 89		sta $2089	                STA CH0_ENV.STATE
+.3438	82 2a ff	brl $3365	                BRL advance
+.343b					PROCESSENV
+.343b	08		php		                PHP
+.343c	8b		phb		                PHB
+.343d	08		php		            PHP
+.343e	e2 20		sep #$20	            SEP #$20
+.3440	48		pha		            PHA
+.3441	a9 00		lda #$00	            LDA #0
+.3443	48		pha		            PHA
+.3444	ab		plb		            PLB
+.3445	68		pla		            PLA
+.3446	28		plp		            PLP
+.3447	e2 20		sep #$20	            SEP #$20
+.3449	bd 01 00	lda $0001,x	                LDA ENVELOPE.STATE,X    ; Check the envelope's state
+.344c	f0 10		beq $345e	                BEQ done                ; If it's zero, we don't need to process it
+.344e	c9 03		cmp #$03	                CMP #TONE_STATE_SUS     ; Is it SUSTAIN?
+.3450	f0 0c		beq $345e	                BEQ done                ; Yes: we don't do anything here either
+.3452	c9 01		cmp #$01	                CMP #TONE_STATE_ATK     ; Dispatch: ATTACK?
+.3454	f0 0b		beq $3461	                BEQ do_attack
+.3456	c9 02		cmp #$02	                CMP #TONE_STATE_DCY     ; Dispatch: DECAY?
+.3458	f0 19		beq $3473	                BEQ do_decay
+.345a	c9 04		cmp #$04	                CMP #TONE_STATE_REL     ; Dispatch: RELEASE?
+.345c	f0 2b		beq $3489	                BEQ do_release
+.345e	ab		plb		done            PLB
+.345f	28		plp		                PLP
+.3460	60		rts		                RTS
+.3461	38		sec		do_attack       SEC
+.3462	bd 06 00	lda $0006,x	                LDA ENVELOPE.ATTENUATION,X  ; Get the attenuation
+.3465	fd 02 00	sbc $0002,x	                SBC ENVELOPE.ATTACK,X       ; Compute the new attenuation
+.3468	10 31		bpl $349b	                BPL set_attenuation         ; Is it >= 0? Set the attenuation
+.346a	a9 02		lda #$02	                LDA #TONE_STATE_DCY         ; Move the state to DECAY
+.346c	9d 01 00	sta $0001,x	                STA ENVELOPE.STATE,X
+.346f	a9 00		lda #$00	                LDA #$00                    ; And set the attenuation to 0
+.3471	80 28		bra $349b	                BRA set_attenuation
+.3473	18		clc		do_decay        CLC
+.3474	bd 06 00	lda $0006,x	                LDA ENVELOPE.ATTENUATION,X  ; Get the attenuation
+.3477	7d 03 00	adc $0003,x	                ADC ENVELOPE.DECAY,X        ; Compute the new attenuation
+.347a	dd 04 00	cmp $0004,x	                CMP ENVELOPE.SUSTAIN,X      ; Is it at SUSTAIN?
+.347d	90 1c		bcc $349b	                BLT set_attenuation         ; No: set the attenuation
+.347f	a9 03		lda #$03	                LDA #TONE_STATE_SUS         ; Move the state to SUSTAIN until the engine releases the note
+.3481	9d 01 00	sta $0001,x	                STA ENVELOPE.STATE,X
+.3484	bd 04 00	lda $0004,x	                LDA ENVELOPE.SUSTAIN,X      ; And set the attenuation to SUSTAIN
+.3487	80 12		bra $349b	                BRA set_attenuation
+.3489	18		clc		do_release      CLC
+.348a	bd 06 00	lda $0006,x	                LDA ENVELOPE.ATTENUATION,X  ; Get the attenuation
+.348d	7d 05 00	adc $0005,x	                ADC ENVELOPE.RELEASE,X      ; Compute the new attenuation
+.3490	c9 0f		cmp #$0f	                CMP #$0F                    ; Is it >15?
+.3492	90 07		bcc $349b	                BLT set_attenuation         ; No: set the attenuation
+.3494	a9 00		lda #$00	                LDA #TONE_STATE_SNC         ; Move the state to SILENCE
+.3496	9d 01 00	sta $0001,x	                STA ENVELOPE.STATE,X
+.3499	a9 0f		lda #$0f	                LDA #$0F                    ; And set the attenuation to 15
+.349b	9d 06 00	sta $0006,x	set_attenuation STA ENVELOPE.ATTENUATION,X  ; Save the new attenuation
+.349e	29 0f		and #$0f	                AND #$0F                    ; Make sure we don't have anything extra
+.34a0	1d 00 00	ora $0000,x	                ORA ENVELOPE.CHANNEL,X      ; Add the channel selector bits
+.34a3	09 90		ora #$90	                ORA #%10010000              ; Make it an attenuation command
+.34a5	8f 00 f1 af	sta $aff100	                STA @l SN76489              ; Send the command
+.34a9	82 b2 ff	brl $345e	                BRL done
+
+;******  Return to file: src\spaceship.s
+
+
+;******  Processing file: src\resources.s
+
+.34ac					LOADRSRC
+.34ac	08		php		                PHP
+.34ad	c2 30		rep #$30	            REP #$30
+.34af	a9 00 00	lda #$0000	                LDA #<>SHIP_STATIONARY  ; Set source address to RLE data of the ship pointing up
+.34b2	85 00		sta $2000	                STA SRCPTR
+.34b4	a9 11 00	lda #$0011	                LDA #`SHIP_STATIONARY
+.34b7	85 02		sta $2002	                STA SRCPTR+2
+.34b9	a9 00 00	lda #$0000	                LDA #<>VSHIP_STILL      ; Set the destination address to the location in VRAM where the sprite should be
+.34bc	85 04		sta $2004	                STA DSTPTR
+.34be	a9 b0 00	lda #$00b0	                LDA #`VSHIP_STILL
+.34c1	85 06		sta $2006	                STA DSTPTR+2
+.34c3	20 30 35	jsr $3530	                JSR EXPANDRLE           ; And expand the RLE data into VRAM
+.34c6	a9 70 02	lda #$0270	                LDA #<>SHIP_UP          ; Set source address to RLE data of the ship pointing up
+.34c9	85 00		sta $2000	                STA SRCPTR
+.34cb	a9 11 00	lda #$0011	                LDA #`SHIP_UP
+.34ce	85 02		sta $2002	                STA SRCPTR+2
+.34d0	a9 00 04	lda #$0400	                LDA #<>VSHIP_UP         ; Set the destination address to the location in VRAM where the sprite should be
+.34d3	85 04		sta $2004	                STA DSTPTR
+.34d5	a9 b0 00	lda #$00b0	                LDA #`VSHIP_UP
+.34d8	85 06		sta $2006	                STA DSTPTR+2
+.34da	20 30 35	jsr $3530	                JSR EXPANDRLE           ; And expand the RLE data into VRAM
+.34dd	a9 a6 14	lda #$14a6	                LDA #<>TORPEDO_START    ; Set source address to RLE data of the torpedo
+.34e0	85 00		sta $2000	                STA SRCPTR
+.34e2	a9 11 00	lda #$0011	                LDA #`TORPEDO_START
+.34e5	85 02		sta $2002	                STA SRCPTR+2
+.34e7	a9 00 18	lda #$1800	                LDA #<>VTORPEDO         ; Set the destination address to the location in VRAM where the sprite should be
+.34ea	85 04		sta $2004	                STA DSTPTR
+.34ec	a9 b0 00	lda #$00b0	                LDA #`VTORPEDO
+.34ef	85 06		sta $2006	                STA DSTPTR+2
+.34f1	20 30 35	jsr $3530	                JSR EXPANDRLE           ; And expand the RLE data into VRAM
+.34f4	a9 ac 18	lda #$18ac	                LDA #<>PURPLE_START     ; Set source address to RLE data of the purple flier
+.34f7	85 00		sta $2000	                STA SRCPTR
+.34f9	a9 11 00	lda #$0011	                LDA #`PURPLE_START
+.34fc	85 02		sta $2002	                STA SRCPTR+2
+.34fe	a9 00 38	lda #$3800	                LDA #<>VPURPLE          ; Set the destination address to the location in VRAM where the sprite should be
+.3501	85 04		sta $2004	                STA DSTPTR
+.3503	a9 b0 00	lda #$00b0	                LDA #`VPURPLE
+.3506	85 06		sta $2006	                STA DSTPTR+2
+.3508	20 30 35	jsr $3530	                JSR EXPANDRLE           ; And expand the RLE data into VRAM
+.350b	a9 46 0f	lda #$0f46	                LDA #<>STARS_START      ; Set source address to RLE data of the star field
+.350e	85 00		sta $2000	                STA SRCPTR
+.3510	a9 11 00	lda #$0011	                LDA #`STARS_START
+.3513	85 02		sta $2002	                STA SRCPTR+2
+.3515	a9 00 40	lda #$4000	                LDA #<>VSTARS           ; Set the destination address to the location in VRAM where the star field should be
+.3518	85 04		sta $2004	                STA DSTPTR
+.351a	a9 b0 00	lda #$00b0	                LDA #`VSTARS
+.351d	85 06		sta $2006	                STA DSTPTR+2
+.351f	20 30 35	jsr $3530	                JSR EXPANDRLE           ; And expand the RLE data into VRAM
+.3522	a2 a2 37	ldx #$37a2	                LDX #<>LUT_START        ; Copy the color pallette to Vicky
+.3525	a0 00 24	ldy #$2400	                LDY #<>GRPH_LUT1_PTR
+.3528	a9 00 04	lda #$0400	                LDA #256 * 4
+.352b	54 af 00	mvn $00,$af	                MVN `LUT_START,`GRPH_LUT1_PTR
+.352e	28		plp		                PLP
+.352f	60		rts		                RTS
+.3530					EXPANDRLE
+.3530	08		php		                PHP
+.3531	e2 20		sep #$20	            SEP #$20
+.3533	64 08		stz $2008	                STZ COUNT           ; Make sure COUNT is in a known good state
+.3535	64 09		stz $2009	                STZ COUNT+1
+.3537	a0 00 00	ldy #$0000	pair_loop       LDY #0
+.353a	b7 00		lda [$2000],y	                LDA [SRCPTR],Y      ; Get the count of bytes to transfer
+.353c	f0 32		beq $3570	                BEQ done            ; If it's zero, we're done
+.353e	85 08		sta $2008	                STA COUNT           ; And save it to the count variable
+.3540	c8		iny		                INY
+.3541	b7 00		lda [$2000],y	                LDA [SRCPTR],Y      ; Get the byte to copy over
+.3543	a0 00 00	ldy #$0000	                LDY #0
+.3546	97 04		sta [$2004],y	write_loop      STA [DSTPTR],Y      ; And write it to the destination
+.3548	c8		iny		                INY
+.3549	c4 08		cpy $2008	                CPY COUNT           ; Have we reached the end?
+.354b	d0 f9		bne $3546	                BNE write_loop      ; No: keep writing it
+.354d	c2 20		rep #$20	            REP #$20
+.354f	18		clc		                CLC                 ; Advance the destination pointer
+.3550	a5 04		lda $2004	                LDA DSTPTR
+.3552	65 08		adc $2008	                ADC COUNT
+.3554	85 04		sta $2004	                STA DSTPTR
+.3556	a5 06		lda $2006	                LDA DSTPTR+2
+.3558	69 00 00	adc #$0000	                ADC #0
+.355b	85 06		sta $2006	                STA DSTPTR+2
+.355d	18		clc		                CLC                 ; Advance the srouce pointer to the next pair
+.355e	a5 00		lda $2000	                LDA SRCPTR
+.3560	69 02 00	adc #$0002	                ADC #2
+.3563	85 00		sta $2000	                STA SRCPTR
+.3565	a5 02		lda $2002	                LDA SRCPTR+2
+.3567	69 00 00	adc #$0000	                ADC #0
+.356a	85 02		sta $2002	                STA SRCPTR+2
+.356c	e2 20		sep #$20	            SEP #$20
+.356e	80 c7		bra $3537	                BRA pair_loop       ; And check it
+.3570	28		plp		done            PLP
+.3571	60		rts		                RTS
+
+;******  Return to file: src\spaceship.s
+
+
+;******  Processing file: src\player.s
+
+.3572					CHECKJOY
+.3572	08		php		                PHP
+.3573	78		sei		                SEI
+.3574	c2 20		rep #$20	            REP #$20
+.3576	64 29		stz $2029	                STZ SHIP.DX
+.3578	64 2b		stz $202b	                STZ SHIP.DY
+.357a	e2 20		sep #$20	            SEP #$20
+.357c	af 00 e8 af	lda $afe800	                LDA @l JOYSTICK0    ; Get the first joystick
+.3580	c2 20		rep #$20	            REP #$20
+.3582	29 ff 00	and #$00ff	                AND #$00FF
+.3585	85 15		sta $2015	                STA JOY0
+.3587	89 10 00	bit #$0010	                BIT #%00010000      ; Has the button been pushed?
+.358a	d0 03		bne $358f	                BNE check_move      ; No: check the movement buttons
+.358c	20 00 37	jsr $3700	                JSR FIRE            ; Yes: fire the torpedo
+.358f	89 08 00	bit #$0008	check_move      BIT #%00001000
+.3592	f0 11		beq $35a5	                BEQ right
+.3594	89 04 00	bit #$0004	                BIT #%00000100
+.3597	d0 12		bne $35ab	                BNE check_ud
+.3599					left
 .3599	c2 20		rep #$20	            REP #$20
-.359b	a0 01 00	ldy #$0001	                LDY #1                  ; We need to set the TONECOUNT
-.359e	b7 65		lda [$2065],y	                LDA [TONEPTR],Y
-.35a0	85 63		sta $2063	                STA TONECOUNT
-.35a2	80 c7		bra $356b	                BRA done                ; And return to caller
-.35a4					do_atten
-.35a4	e2 20		sep #$20	            SEP #$20
-.35a6	b7 65		lda [$2065],y	                LDA [TONEPTR],Y         ; Get the opcode
-.35a8	29 30		and #$30	                AND #%00110000          ; Filter out the channel number
-.35aa	0a		asl a		                ASL A                   ; Move it to the right spot
-.35ab	09 90		ora #$90	                ORA #%10010000          ; Turn it into a set attenuation instruction for the chip
-.35ad	85 0a		sta $200a	                STA TEMP                ; Save it for the moment
-.35af	a0 01 00	ldy #$0001	                LDY #1                  ; Get the attenuation
-.35b2	b7 65		lda [$2065],y	                LDA [TONEPTR],Y
-.35b4	29 0f		and #$0f	                AND #$0F                ; Filter out any junk
-.35b6	05 0a		ora $200a	                ORA TEMP                ; Complete the instruction
-.35b8	8f 00 f1 af	sta $aff100	                STA @l SN76489          ; Send it to the sound chip
-.35bc	80 9c		bra $355a	                BRA advance             ; And go to the next instruction
-.35be					do_freq
-.35be	e2 20		sep #$20	            SEP #$20
-.35c0	b7 65		lda [$2065],y	                LDA [TONEPTR],Y         ; Get the opcode
-.35c2	29 30		and #$30	                AND #%00110000          ; Filter out the channel number
-.35c4	0a		asl a		                ASL A                   ; Move it to the right spot
-.35c5	09 80		ora #$80	                ORA #%10000000          ; Turn it into a set frequency instruction for the chip
-.35c7	85 0a		sta $200a	                STA TEMP                ; Save it for the moment
-.35c9	a0 01 00	ldy #$0001	                LDY #1                  ; Get the lower four bits of the frequency
-.35cc	b7 65		lda [$2065],y	                LDA [TONEPTR],Y
-.35ce	29 0f		and #$0f	                AND #$0F                ; Filter out the higher bits
-.35d0	05 0a		ora $200a	                ORA TEMP                ; Complete the first byte of the instruction
-.35d2	8f 00 f1 af	sta $aff100	                STA @l SN76489          ; Send it to the sound chip
-.35d6	c2 20		rep #$20	            REP #$20
-.35d8	b7 65		lda [$2065],y	                LDA [TONEPTR],Y         ; Get all the bits of the frequency
-.35da	4a		lsr a		                LSR A                   ; Drop the lower 4 bits
-.35db	4a		lsr a		                LSR A
-.35dc	4a		lsr a		                LSR A
-.35dd	4a		lsr a		                LSR A
-.35de	e2 20		sep #$20	            SEP #$20
-.35e0	29 3f		and #$3f	                AND #$3F                ; Filter it to 6 bits
-.35e2	8f 00 f1 af	sta $aff100	                STA @l SN76489          ; Send it to the sound chip
-.35e6	82 71 ff	brl $355a	                BRL advance             ; And go to the next instruction
-.35e9					do_finish
-.35e9	c2 20		rep #$20	            REP #$20
-.35eb	a9 ff ff	lda #$ffff	                LDA #$FFFF              ; Set the counter to -1
-.35ee	85 63		sta $2063	                STA TONECOUNT
-.35f0	82 78 ff	brl $356b	                BRL done
-.35f3					do_set_adsr
-.35f3	e2 20		sep #$20	            SEP #$20
-.35f5	a0 01 00	ldy #$0001	                LDY #1
-.35f8	b7 65		lda [$2065],y	                LDA [TONEPTR],Y         ; Get the sustain and release values
-.35fa	29 0f		and #$0f	                AND #$0F
-.35fc	85 6e		sta $206e	                STA CH0_ENV.RELEASE     ; Set release
-.35fe	b7 65		lda [$2065],y	                LDA [TONEPTR],Y         ; Get the sustain and release values
-.3600	4a		lsr a		                LSR A
-.3601	4a		lsr a		                LSR A
-.3602	4a		lsr a		                LSR A
-.3603	4a		lsr a		                LSR A
-.3604	85 6d		sta $206d	                STA CH0_ENV.SUSTAIN     ; Set sustain
-.3606	a0 02 00	ldy #$0002	                LDY #2
-.3609	b7 65		lda [$2065],y	                LDA [TONEPTR],Y         ; Get the attack and decay values
-.360b	29 0f		and #$0f	                AND #$0F
-.360d	85 6c		sta $206c	                STA CH0_ENV.DECAY       ; Set decay
-.360f	b7 65		lda [$2065],y	                LDA [TONEPTR],Y         ; Get the attack and decay values
-.3611	4a		lsr a		                LSR A
-.3612	4a		lsr a		                LSR A
-.3613	4a		lsr a		                LSR A
-.3614	4a		lsr a		                LSR A
-.3615	85 6b		sta $206b	                STA CH0_ENV.ATTACK      ; Set attack
-.3617	82 40 ff	brl $355a	                BRL advance
-.361a					do_start
-.361a	e2 20		sep #$20	            SEP #$20
-.361c	a9 0f		lda #$0f	                LDA #$0F                ; Set the initial attenuation
-.361e	85 6f		sta $206f	                STA CH0_ENV.ATTENUATION
-.3620	a9 01		lda #$01	                LDA #TONE_STATE_ATK     ; Move the envelope into the ATTACK state
-.3622	85 6a		sta $206a	                STA CH0_ENV.STATE
-.3624	82 33 ff	brl $355a	                BRL advance
-.3627					do_release
-.3627	e2 20		sep #$20	            SEP #$20
-.3629	a9 04		lda #$04	                LDA #TONE_STATE_REL     ; Move the envelope into the RELEASE state
-.362b	85 6a		sta $206a	                STA CH0_ENV.STATE
-.362d	82 2a ff	brl $355a	                BRL advance
-.3630					PROCESSENV
-.3630	08		php		                PHP
-.3631	8b		phb		                PHB
-.3632	08		php		            PHP
-.3633	e2 20		sep #$20	            SEP #$20
-.3635	48		pha		            PHA
-.3636	a9 00		lda #$00	            LDA #0
-.3638	48		pha		            PHA
-.3639	ab		plb		            PLB
-.363a	68		pla		            PLA
-.363b	28		plp		            PLP
-.363c	e2 20		sep #$20	            SEP #$20
-.363e	bd 01 00	lda $0001,x	                LDA ENVELOPE.STATE,X    ; Check the envelope's state
-.3641	f0 10		beq $3653	                BEQ done                ; If it's zero, we don't need to process it
-.3643	c9 03		cmp #$03	                CMP #TONE_STATE_SUS     ; Is it SUSTAIN?
-.3645	f0 0c		beq $3653	                BEQ done                ; Yes: we don't do anything here either
-.3647	c9 01		cmp #$01	                CMP #TONE_STATE_ATK     ; Dispatch: ATTACK?
-.3649	f0 0b		beq $3656	                BEQ do_attack
-.364b	c9 02		cmp #$02	                CMP #TONE_STATE_DCY     ; Dispatch: DECAY?
-.364d	f0 19		beq $3668	                BEQ do_decay
-.364f	c9 04		cmp #$04	                CMP #TONE_STATE_REL     ; Dispatch: RELEASE?
-.3651	f0 2b		beq $367e	                BEQ do_release
-.3653	ab		plb		done            PLB
-.3654	28		plp		                PLP
-.3655	60		rts		                RTS
-.3656	38		sec		do_attack       SEC
-.3657	bd 06 00	lda $0006,x	                LDA ENVELOPE.ATTENUATION,X  ; Get the attenuation
-.365a	fd 02 00	sbc $0002,x	                SBC ENVELOPE.ATTACK,X       ; Compute the new attenuation
-.365d	10 31		bpl $3690	                BPL set_attenuation         ; Is it >= 0? Set the attenuation
-.365f	a9 02		lda #$02	                LDA #TONE_STATE_DCY         ; Move the state to DECAY
-.3661	9d 01 00	sta $0001,x	                STA ENVELOPE.STATE,X
-.3664	a9 00		lda #$00	                LDA #$00                    ; And set the attenuation to 0
-.3666	80 28		bra $3690	                BRA set_attenuation
-.3668	18		clc		do_decay        CLC
-.3669	bd 06 00	lda $0006,x	                LDA ENVELOPE.ATTENUATION,X  ; Get the attenuation
-.366c	7d 03 00	adc $0003,x	                ADC ENVELOPE.DECAY,X        ; Compute the new attenuation
-.366f	dd 04 00	cmp $0004,x	                CMP ENVELOPE.SUSTAIN,X      ; Is it at SUSTAIN?
-.3672	90 1c		bcc $3690	                BLT set_attenuation         ; No: set the attenuation
-.3674	a9 03		lda #$03	                LDA #TONE_STATE_SUS         ; Move the state to SUSTAIN until the engine releases the note
-.3676	9d 01 00	sta $0001,x	                STA ENVELOPE.STATE,X
-.3679	bd 04 00	lda $0004,x	                LDA ENVELOPE.SUSTAIN,X      ; And set the attenuation to SUSTAIN
-.367c	80 12		bra $3690	                BRA set_attenuation
-.367e	18		clc		do_release      CLC
-.367f	bd 06 00	lda $0006,x	                LDA ENVELOPE.ATTENUATION,X  ; Get the attenuation
-.3682	7d 05 00	adc $0005,x	                ADC ENVELOPE.RELEASE,X      ; Compute the new attenuation
-.3685	c9 0f		cmp #$0f	                CMP #$0F                    ; Is it >15?
-.3687	90 07		bcc $3690	                BLT set_attenuation         ; No: set the attenuation
-.3689	a9 00		lda #$00	                LDA #TONE_STATE_SNC         ; Move the state to SILENCE
-.368b	9d 01 00	sta $0001,x	                STA ENVELOPE.STATE,X
-.368e	a9 0f		lda #$0f	                LDA #$0F                    ; And set the attenuation to 15
-.3690	9d 06 00	sta $0006,x	set_attenuation STA ENVELOPE.ATTENUATION,X  ; Save the new attenuation
-.3693	29 0f		and #$0f	                AND #$0F                    ; Make sure we don't have anything extra
-.3695	1d 00 00	ora $0000,x	                ORA ENVELOPE.CHANNEL,X      ; Add the channel selector bits
-.3698	09 90		ora #$90	                ORA #%10010000              ; Make it an attenuation command
-.369a	8f 00 f1 af	sta $aff100	                STA @l SN76489              ; Send the command
-.369e	82 b2 ff	brl $3653	                BRL done
+.359b	a5 0e		lda $200e	                LDA SHIPSPEED
+.359d	49 ff ff	eor #$ffff	                EOR #$FFFF
+.35a0	1a		inc a		                INC A
+.35a1	85 29		sta $2029	                STA SHIP.DX
+.35a3	80 06		bra $35ab	                BRA check_ud
+.35a5					right
+.35a5	c2 20		rep #$20	            REP #$20
+.35a7	a5 0e		lda $200e	                LDA SHIPSPEED
+.35a9	85 29		sta $2029	                STA SHIP.DX
+.35ab	a5 15		lda $2015	check_ud        LDA JOY0
+.35ad	89 02 00	bit #$0002	                BIT #%00000010
+.35b0	f0 11		beq $35c3	                BEQ down
+.35b2	89 01 00	bit #$0001	                BIT #%00000001
+.35b5	d0 12		bne $35c9	                BNE set_move
+.35b7					up
+.35b7	c2 20		rep #$20	            REP #$20
+.35b9	a5 0e		lda $200e	                LDA SHIPSPEED
+.35bb	49 ff ff	eor #$ffff	                EOR #$FFFF
+.35be	1a		inc a		                INC A
+.35bf	85 2b		sta $202b	                STA SHIP.DY
+.35c1	80 06		bra $35c9	                BRA set_move
+.35c3					down
+.35c3	c2 20		rep #$20	            REP #$20
+.35c5	a5 0e		lda $200e	                LDA SHIPSPEED
+.35c7	85 2b		sta $202b	                STA SHIP.DY
+.35c9	20 49 36	jsr $3649	set_move        JSR SHIPMOVE        ; Set whether or not the ship is moving
+.35cc	28		plp		done            PLP
+.35cd	60		rts		                RTS
+.35ce					INITPLAYER
+.35ce	08		php		                PHP
+.35cf	c2 20		rep #$20	            REP #$20
+.35d1	a9 06 00	lda #$0006	                LDA #6                      ; Set the frame delay count
+.35d4	85 3b		sta $203b	                STA SHIP.DELAYDEFAULT
+.35d6	a9 01 00	lda #$0001	                LDA #1                      ; Set the movement delay count
+.35d9	85 3f		sta $203f	                STA SHIP.MOVEDELDEF
+.35db	a9 02 00	lda #$0002	                LDA #2                      ; Set the default speed of the ship
+.35de	85 0e		sta $200e	                STA SHIPSPEED
+.35e0	a9 30 01	lda #$0130	                LDA #320 - 16               ; Put the sprite in the middle of the screen
+.35e3	85 25		sta $2025	                STA SHIP.X
+.35e5	a9 e0 00	lda #$00e0	                LDA #240 - 16
+.35e8	85 27		sta $2027	                STA SHIP.Y
+.35ea	64 29		stz $2029	                STZ SHIP.DX                 ; Stationary
+.35ec	64 2b		stz $202b	                STZ SHIP.DY
+.35ee	20 49 36	jsr $3649	                JSR SHIPMOVE                ; Set the sound and graphics for a non-moving ship
+.35f1	64 35		stz $2035	                STZ SHIP.FRAME              ; Initial frame
+.35f3	a9 01 00	lda #$0001	                LDA #1
+.35f6	85 37		sta $2037	                STA SHIP.FRAMECOUNT         ; 0 frames in the animation
+.35f8	a5 3b		lda $203b	                LDA SHIP.DELAYDEFAULT
+.35fa	85 39		sta $2039	                STA SHIP.FRAMEDELAY         ; Set the frame delay counter
+.35fc	a5 3f		lda $203f	                LDA SHIP.MOVEDELDEF         ; Set the movement delay counter
+.35fe	85 3d		sta $203d	                STA SHIP.MOVEDELAY
+.3600	a9 ff ff	lda #$ffff	                LDA #$FFFF
+.3603	85 2d		sta $202d	                STA SHIP.WASMOVING          ; Set ship was moving flag to sentinel value
+.3605	a9 12 36	lda #$3612	                LDA #<>ANIMPLAYER           ; Set the animation procedure for the sprite
+.3608	85 41		sta $2041	                STA SHIP.ANIMPROC
+.360a	e2 20		sep #$20	            SEP #$20
+.360c	a9 e0		lda #$e0	                LDA #SP_STAT_ACTIVE | SP_STAT_UPDATE
+.360e	85 43		sta $2043	                STA SHIP.STATUS             ; Flag the ship as active and ready for an update
+.3610	28		plp		                PLP
+.3611	60		rts		                RTS
+.3612					ANIMPLAYER
+.3612	08		php		                PHP
+.3613	08		php		            PHP
+.3614	e2 20		sep #$20	            SEP #$20
+.3616	48		pha		            PHA
+.3617	a9 00		lda #$00	            LDA #0
+.3619	48		pha		            PHA
+.361a	ab		plb		            PLB
+.361b	68		pla		            PLA
+.361c	28		plp		            PLP
+.361d	08		php		            PHP
+.361e	c2 20		rep #$20	            REP #$20
+.3620	48		pha		            PHA
+.3621	a9 00 20	lda #$2000	            LDA #SRCPTR
+.3624	5b		tcd		            TCD
+.3625	68		pla		            PLA
+.3626	28		plp		            PLP
+.3627	a5 25		lda $2025	                LDA SHIP.X
+.3629	10 04		bpl $362f	                BPL check_right             ; X >= 0?
+.362b	64 25		stz $2025	                STZ SHIP.X                  ; No: Lock it to 0
+.362d	80 08		bra $3637	                BRA check_top
+.362f	c5 17		cmp $2017	check_right     CMP BOUNDARY_R              ; X >= the right most position?
+.3631	90 04		bcc $3637	                BLT check_top               ; No: we're good
+.3633	a5 17		lda $2017	                LDA BOUNDARY_R              ; Yes: lock it to the right most position
+.3635	85 25		sta $2025	                STA SHIP.X
+.3637	a5 27		lda $2027	check_top       LDA SHIP.Y
+.3639	10 04		bpl $363f	                BPL check_bottom            ; Y >= 0?
+.363b	64 27		stz $2027	                STZ SHIP.Y                  ; No: Lock it to 0
+.363d	80 f8		bra $3637	                BRA check_top
+.363f	c5 19		cmp $2019	check_bottom    CMP BOUNDARY_B              ; X >= the right most position?
+.3641	90 04		bcc $3647	                BLT done                    ; No: we're good
+.3643	a5 19		lda $2019	                LDA BOUNDARY_B              ; Yes: lock it to the right most position
+.3645	85 27		sta $2027	                STA SHIP.Y
+.3647	28		plp		done            PLP
+.3648	60		rts		                RTS
+.3649					SHIPMOVE
+.3649	08		php		                PHP
+.364a	78		sei		                SEI
+.364b	c2 20		rep #$20	            REP #$20
+.364d	a5 29		lda $2029	                LDA SHIP.DX         ; If DX <> 0 or DY <> 0, the ship is moving
+.364f	d0 27		bne $3678	                BNE is_moving
+.3651	a5 2b		lda $202b	                LDA SHIP.DY
+.3653	d0 23		bne $3678	                BNE is_moving
+.3655	a5 2d		lda $202d	                LDA SHIP.WASMOVING  ; Don't do anything if the ship was already stationary
+.3657	f0 46		beq $369f	                BEQ done
+.3659	a9 ff 00	lda #$00ff	                LDA #$FF            ; Turn off the engine noise
+.365c	20 51 30	jsr $3051	                JSR NOISE
+.365f	a9 00 00	lda #$0000	                LDA #<>VSHIP_STILL  ; Sprite should be of a stationary ship
+.3662	85 31		sta $2031	                STA SHIP.BASEADDR
+.3664	38		sec		                SEC
+.3665	a9 b0 00	lda #$00b0	                LDA #`VSHIP_STILL
+.3668	e9 b0 00	sbc #$00b0	                SBC #$B0
+.366b	85 33		sta $2033	                STA SHIP.BASEADDR+2
+.366d	a9 01 00	lda #$0001	                LDA #1              ; There is only the one frame
+.3670	85 37		sta $2037	                STA SHIP.FRAMECOUNT
+.3672	64 35		stz $2035	                STZ SHIP.FRAME
+.3674	64 2d		stz $202d	                STZ SHIP.WASMOVING  ; Set that the ship is no longer moving
+.3676	80 27		bra $369f	                BRA done
+.3678	a5 2d		lda $202d	is_moving       LDA SHIP.WASMOVING  ; Don't update if ship was already moving
+.367a	c9 01 00	cmp #$0001	                CMP #1
+.367d	f0 20		beq $369f	                BEQ done
+.367f	a9 07 00	lda #$0007	                LDA #7              ; Turn on the engine noise
+.3682	20 51 30	jsr $3051	                JSR NOISE
+.3685	a9 00 04	lda #$0400	                LDA #<>VSHIP_UP     ; Sprite should be of a flying ship
+.3688	85 31		sta $2031	                STA SHIP.BASEADDR
+.368a	38		sec		                SEC
+.368b	a9 b0 00	lda #$00b0	                LDA #`VSHIP_UP
+.368e	e9 b0 00	sbc #$00b0	                SBC #$B0
+.3691	85 33		sta $2033	                STA SHIP.BASEADDR+2
+.3693	a9 05 00	lda #$0005	                LDA #5              ; There are five frames in this animation
+.3696	85 37		sta $2037	                STA SHIP.FRAMECOUNT
+.3698	64 35		stz $2035	                STZ SHIP.FRAME
+.369a	a9 01 00	lda #$0001	                LDA #1              ; Set that the ship is now moving
+.369d	85 2d		sta $202d	                STA SHIP.WASMOVING
+.369f	28		plp		done            PLP
+.36a0	60		rts		                RTS
+.36a1					INITTORPEDO
+.36a1	08		php		                PHP
+.36a2	c2 20		rep #$20	            REP #$20
+.36a4	a9 06 00	lda #$0006	                LDA #6                      ; Set the frame delay count
+.36a7	85 5a		sta $205a	                STA TORPEDO.DELAYDEFAULT
+.36a9	a9 01 00	lda #$0001	                LDA #1                      ; Set the movement delay count
+.36ac	85 5e		sta $205e	                STA TORPEDO.MOVEDELDEF
+.36ae	a9 30 01	lda #$0130	                LDA #320 - 16               ; Put the sprite in the middle of the screen
+.36b1	85 44		sta $2044	                STA TORPEDO.X               ; This should be set on FIRE
+.36b3	a9 e0 00	lda #$00e0	                LDA #240 - 16
+.36b6	85 46		sta $2046	                STA TORPEDO.Y
+.36b8	64 48		stz $2048	                STZ TORPEDO.DX              ; Stationary
+.36ba	a9 fc ff	lda #$fffc	                LDA #$FFFC                  ; -4 in the Y direction
+.36bd	85 4a		sta $204a	                STA TORPEDO.DY
+.36bf	a9 ff ff	lda #$ffff	                LDA #$FFFF                  ; Set initial frame to -1 to keep it inactive until FIRE
+.36c2	85 54		sta $2054	                STA TORPEDO.FRAME
+.36c4	a9 08 00	lda #$0008	                LDA #8
+.36c7	85 56		sta $2056	                STA TORPEDO.FRAMECOUNT      ; 0 frames in the animation
+.36c9	a5 5a		lda $205a	                LDA TORPEDO.DELAYDEFAULT
+.36cb	85 58		sta $2058	                STA TORPEDO.FRAMEDELAY      ; Set the frame delay counter
+.36cd	a9 00 18	lda #$1800	                LDA #<>VTORPEDO             ; Sprite should be of a torpedo
+.36d0	85 50		sta $2050	                STA TORPEDO.BASEADDR
+.36d2	38		sec		                SEC
+.36d3	a9 b0 00	lda #$00b0	                LDA #`VTORPEDO
+.36d6	e9 b0 00	sbc #$00b0	                SBC #$B0
+.36d9	85 52		sta $2052	                STA TORPEDO.BASEADDR+2
+.36db	a5 5e		lda $205e	                LDA TORPEDO.MOVEDELDEF      ; Set the movement delay counter
+.36dd	85 5c		sta $205c	                STA TORPEDO.MOVEDELAY
+.36df	a9 e6 36	lda #$36e6	                LDA #<>ANIMTORPEDO           ; Set the animation procedure for the sprite
+.36e2	85 60		sta $2060	                STA TORPEDO.ANIMPROC
+.36e4	28		plp		                PLP
+.36e5	60		rts		                RTS
+.36e6					ANIMTORPEDO
+.36e6	08		php		                PHP
+.36e7	a5 46		lda $2046	                LDA TORPEDO.Y               ; Check the height
+.36e9	30 02		bmi $36ed	                BMI cancel                  ; If above the first line, cancel it
+.36eb	d0 11		bne $36fe	                BNE done                    ; If not at the top, we're done
+.36ed	a9 ff ff	lda #$ffff	cancel          LDA #$FFFF                  ; If at top, stop processing the torpedo
+.36f0	85 54		sta $2054	                STA TORPEDO.FRAME
+.36f2	e2 20		sep #$20	            SEP #$20
+.36f4	a9 00		lda #$00	                LDA #0
+.36f6	8f 08 02 af	sta $af0208	                STA @l SP01_CONTROL_REG
+.36fa	a9 00		lda #$00	                LDA #0
+.36fc	85 62		sta $2062	                STA TORPEDO.STATUS          ; Deactivate the torpedo sprite
+.36fe	28		plp		done            PLP
+.36ff	60		rts		                RTS
+.3700					FIRE
+.3700	48		pha		                PHA
+.3701	08		php		                PHP
+.3702	c2 20		rep #$20	            REP #$20
+.3704	a5 54		lda $2054	                LDA TORPEDO.FRAME           ; Is the torpedo already on the screen?
+.3706	10 27		bpl $372f	                BPL done                    ; Yes: we don't fire again
+.3708	a5 25		lda $2025	                LDA SHIP.X                  ; Set the torpedo position to be the same as the ship
+.370a	85 44		sta $2044	                STA TORPEDO.X
+.370c	a5 27		lda $2027	                LDA SHIP.Y
+.370e	85 46		sta $2046	                STA TORPEDO.Y
+.3710	a9 00 00	lda #$0000	                LDA #0                      ; Set the starting frame
+.3713	85 54		sta $2054	                STA TORPEDO.FRAME
+.3715	e2 20		sep #$20	            SEP #$20
+.3717	a9 e0		lda #$e0	                LDA #SP_STAT_ACTIVE | SP_STAT_UPDATE
+.3719	85 62		sta $2062	                STA TORPEDO.STATUS          ; Make the torpedo sprite active and ready for update
+.371b	a9 01		lda #$01	                LDA #$01
+.371d	8f 08 02 af	sta $af0208	                STA @l SP01_CONTROL_REG
+.3721	c2 20		rep #$20	            REP #$20
+.3723	a9 d0 1a	lda #$1ad0	                LDA #<>TONE_PEW             ; Queue playing the PEW sound
+.3726	85 84		sta $2084	                STA TONEPTR
+.3728	a9 11 00	lda #$0011	                LDA #`TONE_PEW
+.372b	85 86		sta $2086	                STA TONEPTR+2
+.372d	64 82		stz $2082	                STZ TONECOUNT
+.372f	28		plp		done            PLP
+.3730	68		pla		                PLA
+.3731	60		rts		                RTS
+
+;******  Return to file: src\spaceship.s
+
+
+;******  Processing file: src\enemies.s
+
+.3732					SPAWNPURPLE
+.3732	08		php		                PHP
+.3733	08		php		            PHP
+.3734	e2 20		sep #$20	            SEP #$20
+.3736	48		pha		            PHA
+.3737	a9 00		lda #$00	            LDA #0
+.3739	48		pha		            PHA
+.373a	ab		plb		            PLB
+.373b	68		pla		            PLA
+.373c	28		plp		            PLP
+.373d	08		php		            PHP
+.373e	c2 20		rep #$20	            REP #$20
+.3740	48		pha		            PHA
+.3741	a9 00 20	lda #$2000	            LDA #SRCPTR
+.3744	5b		tcd		            TCD
+.3745	68		pla		            PLA
+.3746	28		plp		            PLP
+.3747	c2 30		rep #$30	            REP #$30
+.3749	20 7f 32	jsr $327f	                JSR FINDSPRITE              ; Find an open sprite slot
+.374c	90 52		bcc $37a0	                BCC done                    ; If we didn't find a slot, just return
+.374e	a9 00 38	lda #$3800	                LDA #<>VPURPLE              ; Set the address to the pixmap data
+.3751	9d 0c 00	sta $000c,x	                STA SPRITE.BASEADDR,X
+.3754	a9 b0 00	lda #$00b0	                LDA #`VPURPLE
+.3757	9d 0e 00	sta $000e,x	                STA SPRITE.BASEADDR+2,X
+.375a	a9 06 00	lda #$0006	                LDA #6                      ; Set the frame delay count
+.375d	9d 16 00	sta $0016,x	                STA SPRITE.DELAYDEFAULT,X
+.3760	a9 01 00	lda #$0001	                LDA #1                      ; Set the movement delay count
+.3763	9d 1a 00	sta $001a,x	                STA SPRITE.MOVEDELDEF,X
+.3766	9e 04 00	stz $0004,x	                STZ SPRITE.DX,X             ; Stationary
+.3769	9e 06 00	stz $0006,x	                STZ SPRITE.DY,X
+.376c	a9 30 01	lda #$0130	                LDA #320 - 16               ; Put the sprite in the top-middle of the screen
+.376f	9d 00 00	sta $0000,x	                STA SPRITE.X,X
+.3772	a9 0a 00	lda #$000a	                LDA #10
+.3775	9d 02 00	sta $0002,x	                STA SPRITE.Y,X
+.3778	a9 02 00	lda #$0002	                LDA #2
+.377b	9d 12 00	sta $0012,x	                STA SPRITE.FRAMECOUNT,X
+.377e	a9 01 00	lda #$0001	                LDA #1
+.3781	9d 10 00	sta $0010,x	                STA SPRITE.FRAME,X          ; Initial frame
+.3784	bd 16 00	lda $0016,x	                LDA SPRITE.DELAYDEFAULT,X
+.3787	9d 14 00	sta $0014,x	                STA SPRITE.FRAMEDELAY,X     ; Set the frame delay counter
+.378a	bd 1a 00	lda $001a,x	                LDA SPRITE.MOVEDELDEF,X     ; Set the movement delay counter
+.378d	9d 18 00	sta $0018,x	                STA SPRITE.MOVEDELAY,X
+.3790	a9 ff ff	lda #$ffff	                LDA #$FFFF
+.3793	9d 08 00	sta $0008,x	                STA SPRITE.WASMOVING,X      ; Set sprite was moving flag to sentinel value
+.3796	9e 1c 00	stz $001c,x	                STZ SPRITE.ANIMPROC,X
+.3799	e2 20		sep #$20	            SEP #$20
+.379b	a9 e0		lda #$e0	                LDA #SP_STAT_ACTIVE | SP_STAT_UPDATE
+.379d	9d 1e 00	sta $001e,x	                STA SPRITE.STATUS,X         ; Flag the sprite as active and ready for an update
+.37a0	28		plp		done            PLP
+.37a1	60		rts		                RTS
 
 ;******  Return to file: src\spaceship.s
 
 
 ;******  Processing file: src\rsrc/colors.s
 
-.36a1					LUT_START
->36a1	00 00 00 00			.byte 0, 0, 0, 0
->36a5	aa 00 00 00			.byte 170, 0, 0, 0
->36a9	00 aa 00 00			.byte 0, 170, 0, 0
->36ad	aa aa 00 00			.byte 170, 170, 0, 0
->36b1	00 00 aa 00			.byte 0, 0, 170, 0
->36b5	aa 00 aa 00			.byte 170, 0, 170, 0
->36b9	00 55 aa 00			.byte 0, 85, 170, 0
->36bd	aa aa aa 00			.byte 170, 170, 170, 0
->36c1	55 55 55 00			.byte 85, 85, 85, 0
->36c5	ff 55 55 00			.byte 255, 85, 85, 0
->36c9	55 ff 55 00			.byte 85, 255, 85, 0
->36cd	ff ff 55 00			.byte 255, 255, 85, 0
->36d1	55 55 ff 00			.byte 85, 85, 255, 0
->36d5	ff 55 ff 00			.byte 255, 85, 255, 0
->36d9	55 ff ff 00			.byte 85, 255, 255, 0
->36dd	ff ff ff 00			.byte 255, 255, 255, 0
->36e1	00 00 00 00			.byte 0, 0, 0, 0
->36e5	10 10 10 00			.byte 16, 16, 16, 0
->36e9	20 20 20 00			.byte 32, 32, 32, 0
->36ed	35 35 35 00			.byte 53, 53, 53, 0
->36f1	45 45 45 00			.byte 69, 69, 69, 0
->36f5	55 55 55 00			.byte 85, 85, 85, 0
->36f9	65 65 65 00			.byte 101, 101, 101, 0
->36fd	75 75 75 00			.byte 117, 117, 117, 0
->3701	8a 8a 8a 00			.byte 138, 138, 138, 0
->3705	9a 9a 9a 00			.byte 154, 154, 154, 0
->3709	aa aa aa 00			.byte 170, 170, 170, 0
->370d	ba ba ba 00			.byte 186, 186, 186, 0
->3711	ca ca ca 00			.byte 202, 202, 202, 0
->3715	df df df 00			.byte 223, 223, 223, 0
->3719	ef ef ef 00			.byte 239, 239, 239, 0
->371d	ff ff ff 00			.byte 255, 255, 255, 0
->3721	ff 00 00 00			.byte 255, 0, 0, 0
->3725	ff 00 41 00			.byte 255, 0, 65, 0
->3729	ff 00 82 00			.byte 255, 0, 130, 0
->372d	ff 00 be 00			.byte 255, 0, 190, 0
->3731	ff 00 ff 00			.byte 255, 0, 255, 0
->3735	be 00 ff 00			.byte 190, 0, 255, 0
->3739	82 00 ff 00			.byte 130, 0, 255, 0
->373d	41 00 ff 00			.byte 65, 0, 255, 0
->3741	00 00 ff 00			.byte 0, 0, 255, 0
->3745	00 41 ff 00			.byte 0, 65, 255, 0
->3749	00 82 ff 00			.byte 0, 130, 255, 0
->374d	00 be ff 00			.byte 0, 190, 255, 0
->3751	00 ff ff 00			.byte 0, 255, 255, 0
->3755	00 ff be 00			.byte 0, 255, 190, 0
->3759	00 ff 82 00			.byte 0, 255, 130, 0
->375d	00 ff 41 00			.byte 0, 255, 65, 0
->3761	00 ff 00 00			.byte 0, 255, 0, 0
->3765	41 ff 00 00			.byte 65, 255, 0, 0
->3769	82 ff 00 00			.byte 130, 255, 0, 0
->376d	be ff 00 00			.byte 190, 255, 0, 0
->3771	ff ff 00 00			.byte 255, 255, 0, 0
->3775	ff be 00 00			.byte 255, 190, 0, 0
->3779	ff 82 00 00			.byte 255, 130, 0, 0
->377d	ff 41 00 00			.byte 255, 65, 0, 0
->3781	ff 82 82 00			.byte 255, 130, 130, 0
->3785	ff 82 9e 00			.byte 255, 130, 158, 0
->3789	ff 82 be 00			.byte 255, 130, 190, 0
->378d	ff 82 df 00			.byte 255, 130, 223, 0
->3791	ff 82 ff 00			.byte 255, 130, 255, 0
->3795	df 82 ff 00			.byte 223, 130, 255, 0
->3799	be 82 ff 00			.byte 190, 130, 255, 0
->379d	9e 82 ff 00			.byte 158, 130, 255, 0
->37a1	82 82 ff 00			.byte 130, 130, 255, 0
->37a5	82 9e ff 00			.byte 130, 158, 255, 0
->37a9	82 be ff 00			.byte 130, 190, 255, 0
->37ad	82 df ff 00			.byte 130, 223, 255, 0
->37b1	82 ff ff 00			.byte 130, 255, 255, 0
->37b5	82 ff df 00			.byte 130, 255, 223, 0
->37b9	82 ff be 00			.byte 130, 255, 190, 0
->37bd	82 ff 9e 00			.byte 130, 255, 158, 0
->37c1	82 ff 82 00			.byte 130, 255, 130, 0
->37c5	9e ff 82 00			.byte 158, 255, 130, 0
->37c9	be ff 82 00			.byte 190, 255, 130, 0
->37cd	df ff 82 00			.byte 223, 255, 130, 0
->37d1	ff ff 82 00			.byte 255, 255, 130, 0
->37d5	ff df 82 00			.byte 255, 223, 130, 0
->37d9	ff be 82 00			.byte 255, 190, 130, 0
->37dd	ff 9e 82 00			.byte 255, 158, 130, 0
->37e1	ff ba ba 00			.byte 255, 186, 186, 0
->37e5	ff ba ca 00			.byte 255, 186, 202, 0
->37e9	ff ba df 00			.byte 255, 186, 223, 0
->37ed	ff ba ef 00			.byte 255, 186, 239, 0
->37f1	ff ba ff 00			.byte 255, 186, 255, 0
->37f5	ef ba ff 00			.byte 239, 186, 255, 0
->37f9	df ba ff 00			.byte 223, 186, 255, 0
->37fd	ca ba ff 00			.byte 202, 186, 255, 0
->3801	ba ba ff 00			.byte 186, 186, 255, 0
->3805	ba ca ff 00			.byte 186, 202, 255, 0
->3809	ba df ff 00			.byte 186, 223, 255, 0
->380d	ba ef ff 00			.byte 186, 239, 255, 0
->3811	ba ff ff 00			.byte 186, 255, 255, 0
->3815	ba ff ef 00			.byte 186, 255, 239, 0
->3819	ba ff df 00			.byte 186, 255, 223, 0
->381d	ba ff ca 00			.byte 186, 255, 202, 0
->3821	ba ff ba 00			.byte 186, 255, 186, 0
->3825	ca ff ba 00			.byte 202, 255, 186, 0
->3829	df ff ba 00			.byte 223, 255, 186, 0
->382d	ef ff ba 00			.byte 239, 255, 186, 0
->3831	ff ff ba 00			.byte 255, 255, 186, 0
->3835	ff ef ba 00			.byte 255, 239, 186, 0
->3839	ff df ba 00			.byte 255, 223, 186, 0
->383d	ff ca ba 00			.byte 255, 202, 186, 0
->3841	71 00 00 00			.byte 113, 0, 0, 0
->3845	71 00 1c 00			.byte 113, 0, 28, 0
->3849	71 00 39 00			.byte 113, 0, 57, 0
->384d	71 00 55 00			.byte 113, 0, 85, 0
->3851	71 00 71 00			.byte 113, 0, 113, 0
->3855	55 00 71 00			.byte 85, 0, 113, 0
->3859	39 00 71 00			.byte 57, 0, 113, 0
->385d	1c 00 71 00			.byte 28, 0, 113, 0
->3861	00 00 71 00			.byte 0, 0, 113, 0
->3865	00 1c 71 00			.byte 0, 28, 113, 0
->3869	00 39 71 00			.byte 0, 57, 113, 0
->386d	00 55 71 00			.byte 0, 85, 113, 0
->3871	00 71 71 00			.byte 0, 113, 113, 0
->3875	00 71 55 00			.byte 0, 113, 85, 0
->3879	00 71 39 00			.byte 0, 113, 57, 0
->387d	00 71 1c 00			.byte 0, 113, 28, 0
->3881	00 71 00 00			.byte 0, 113, 0, 0
->3885	1c 71 00 00			.byte 28, 113, 0, 0
->3889	39 71 00 00			.byte 57, 113, 0, 0
->388d	55 71 00 00			.byte 85, 113, 0, 0
->3891	71 71 00 00			.byte 113, 113, 0, 0
->3895	71 55 00 00			.byte 113, 85, 0, 0
->3899	71 39 00 00			.byte 113, 57, 0, 0
->389d	71 1c 00 00			.byte 113, 28, 0, 0
->38a1	71 39 39 00			.byte 113, 57, 57, 0
->38a5	71 39 45 00			.byte 113, 57, 69, 0
->38a9	71 39 55 00			.byte 113, 57, 85, 0
->38ad	71 39 61 00			.byte 113, 57, 97, 0
->38b1	71 39 71 00			.byte 113, 57, 113, 0
->38b5	61 39 71 00			.byte 97, 57, 113, 0
->38b9	55 39 71 00			.byte 85, 57, 113, 0
->38bd	45 39 71 00			.byte 69, 57, 113, 0
->38c1	39 39 71 00			.byte 57, 57, 113, 0
->38c5	39 45 71 00			.byte 57, 69, 113, 0
->38c9	39 55 71 00			.byte 57, 85, 113, 0
->38cd	39 61 71 00			.byte 57, 97, 113, 0
->38d1	39 71 71 00			.byte 57, 113, 113, 0
->38d5	39 71 61 00			.byte 57, 113, 97, 0
->38d9	39 71 55 00			.byte 57, 113, 85, 0
->38dd	39 71 45 00			.byte 57, 113, 69, 0
->38e1	39 71 39 00			.byte 57, 113, 57, 0
->38e5	45 71 39 00			.byte 69, 113, 57, 0
->38e9	55 71 39 00			.byte 85, 113, 57, 0
->38ed	61 71 39 00			.byte 97, 113, 57, 0
->38f1	71 71 39 00			.byte 113, 113, 57, 0
->38f5	71 61 39 00			.byte 113, 97, 57, 0
->38f9	71 55 39 00			.byte 113, 85, 57, 0
->38fd	71 45 39 00			.byte 113, 69, 57, 0
->3901	71 51 51 00			.byte 113, 81, 81, 0
->3905	71 51 59 00			.byte 113, 81, 89, 0
->3909	71 51 61 00			.byte 113, 81, 97, 0
->390d	71 51 69 00			.byte 113, 81, 105, 0
->3911	71 51 71 00			.byte 113, 81, 113, 0
->3915	69 51 71 00			.byte 105, 81, 113, 0
->3919	61 51 71 00			.byte 97, 81, 113, 0
->391d	59 51 71 00			.byte 89, 81, 113, 0
->3921	51 51 71 00			.byte 81, 81, 113, 0
->3925	51 59 71 00			.byte 81, 89, 113, 0
->3929	51 61 71 00			.byte 81, 97, 113, 0
->392d	51 69 71 00			.byte 81, 105, 113, 0
->3931	51 71 71 00			.byte 81, 113, 113, 0
->3935	51 71 69 00			.byte 81, 113, 105, 0
->3939	51 71 61 00			.byte 81, 113, 97, 0
->393d	51 71 59 00			.byte 81, 113, 89, 0
->3941	51 71 51 00			.byte 81, 113, 81, 0
->3945	59 71 51 00			.byte 89, 113, 81, 0
->3949	61 71 51 00			.byte 97, 113, 81, 0
->394d	69 71 51 00			.byte 105, 113, 81, 0
->3951	71 71 51 00			.byte 113, 113, 81, 0
->3955	71 69 51 00			.byte 113, 105, 81, 0
->3959	71 61 51 00			.byte 113, 97, 81, 0
->395d	71 59 51 00			.byte 113, 89, 81, 0
->3961	41 00 00 00			.byte 65, 0, 0, 0
->3965	41 00 10 00			.byte 65, 0, 16, 0
->3969	41 00 20 00			.byte 65, 0, 32, 0
->396d	41 00 31 00			.byte 65, 0, 49, 0
->3971	41 00 41 00			.byte 65, 0, 65, 0
->3975	31 00 41 00			.byte 49, 0, 65, 0
->3979	20 00 41 00			.byte 32, 0, 65, 0
->397d	10 00 41 00			.byte 16, 0, 65, 0
->3981	00 00 41 00			.byte 0, 0, 65, 0
->3985	00 10 41 00			.byte 0, 16, 65, 0
->3989	00 20 41 00			.byte 0, 32, 65, 0
->398d	00 31 41 00			.byte 0, 49, 65, 0
->3991	00 41 41 00			.byte 0, 65, 65, 0
->3995	00 41 31 00			.byte 0, 65, 49, 0
->3999	00 41 20 00			.byte 0, 65, 32, 0
->399d	00 41 10 00			.byte 0, 65, 16, 0
->39a1	00 41 00 00			.byte 0, 65, 0, 0
->39a5	10 41 00 00			.byte 16, 65, 0, 0
->39a9	20 41 00 00			.byte 32, 65, 0, 0
->39ad	31 41 00 00			.byte 49, 65, 0, 0
->39b1	41 41 00 00			.byte 65, 65, 0, 0
->39b5	41 31 00 00			.byte 65, 49, 0, 0
->39b9	41 20 00 00			.byte 65, 32, 0, 0
->39bd	41 10 00 00			.byte 65, 16, 0, 0
->39c1	41 20 20 00			.byte 65, 32, 32, 0
->39c5	41 20 28 00			.byte 65, 32, 40, 0
->39c9	41 20 31 00			.byte 65, 32, 49, 0
->39cd	41 20 39 00			.byte 65, 32, 57, 0
->39d1	41 20 41 00			.byte 65, 32, 65, 0
->39d5	39 20 41 00			.byte 57, 32, 65, 0
->39d9	31 20 41 00			.byte 49, 32, 65, 0
->39dd	28 20 41 00			.byte 40, 32, 65, 0
->39e1	20 20 41 00			.byte 32, 32, 65, 0
->39e5	20 28 41 00			.byte 32, 40, 65, 0
->39e9	20 31 41 00			.byte 32, 49, 65, 0
->39ed	20 39 41 00			.byte 32, 57, 65, 0
->39f1	20 41 41 00			.byte 32, 65, 65, 0
->39f5	20 41 39 00			.byte 32, 65, 57, 0
->39f9	20 41 31 00			.byte 32, 65, 49, 0
->39fd	20 41 28 00			.byte 32, 65, 40, 0
->3a01	20 41 20 00			.byte 32, 65, 32, 0
->3a05	28 41 20 00			.byte 40, 65, 32, 0
->3a09	31 41 20 00			.byte 49, 65, 32, 0
->3a0d	39 41 20 00			.byte 57, 65, 32, 0
->3a11	41 41 20 00			.byte 65, 65, 32, 0
->3a15	41 39 20 00			.byte 65, 57, 32, 0
->3a19	41 31 20 00			.byte 65, 49, 32, 0
->3a1d	41 28 20 00			.byte 65, 40, 32, 0
->3a21	41 2d 2d 00			.byte 65, 45, 45, 0
->3a25	41 2d 31 00			.byte 65, 45, 49, 0
->3a29	41 2d 35 00			.byte 65, 45, 53, 0
->3a2d	41 2d 3d 00			.byte 65, 45, 61, 0
->3a31	41 2d 41 00			.byte 65, 45, 65, 0
->3a35	3d 2d 41 00			.byte 61, 45, 65, 0
->3a39	35 2d 41 00			.byte 53, 45, 65, 0
->3a3d	31 2d 41 00			.byte 49, 45, 65, 0
->3a41	2d 2d 41 00			.byte 45, 45, 65, 0
->3a45	2d 31 41 00			.byte 45, 49, 65, 0
->3a49	2d 35 41 00			.byte 45, 53, 65, 0
->3a4d	2d 3d 41 00			.byte 45, 61, 65, 0
->3a51	2d 41 41 00			.byte 45, 65, 65, 0
->3a55	2d 41 3d 00			.byte 45, 65, 61, 0
->3a59	2d 41 35 00			.byte 45, 65, 53, 0
->3a5d	2d 41 31 00			.byte 45, 65, 49, 0
->3a61	2d 41 2d 00			.byte 45, 65, 45, 0
->3a65	31 41 2d 00			.byte 49, 65, 45, 0
->3a69	35 41 2d 00			.byte 53, 65, 45, 0
->3a6d	3d 41 2d 00			.byte 61, 65, 45, 0
->3a71	41 41 2d 00			.byte 65, 65, 45, 0
->3a75	41 3d 2d 00			.byte 65, 61, 45, 0
->3a79	41 35 2d 00			.byte 65, 53, 45, 0
->3a7d	41 31 2d 00			.byte 65, 49, 45, 0
->3a81	00 00 00 00			.byte 0, 0, 0, 0
->3a85	00 00 00 00			.byte 0, 0, 0, 0
->3a89	00 00 00 00			.byte 0, 0, 0, 0
->3a8d	00 00 00 00			.byte 0, 0, 0, 0
->3a91	00 00 00 00			.byte 0, 0, 0, 0
->3a95	00 00 00 00			.byte 0, 0, 0, 0
->3a99	00 00 00 00			.byte 0, 0, 0, 0
->3a9d	00 00 00 00			.byte 0, 0, 0, 0
-=$003aa1				LUT_END = *
+.37a2					LUT_START
+>37a2	00 00 00 00			.byte 0, 0, 0, 0
+>37a6	aa 00 00 00			.byte 170, 0, 0, 0
+>37aa	00 aa 00 00			.byte 0, 170, 0, 0
+>37ae	aa aa 00 00			.byte 170, 170, 0, 0
+>37b2	00 00 aa 00			.byte 0, 0, 170, 0
+>37b6	aa 00 aa 00			.byte 170, 0, 170, 0
+>37ba	00 55 aa 00			.byte 0, 85, 170, 0
+>37be	aa aa aa 00			.byte 170, 170, 170, 0
+>37c2	55 55 55 00			.byte 85, 85, 85, 0
+>37c6	ff 55 55 00			.byte 255, 85, 85, 0
+>37ca	55 ff 55 00			.byte 85, 255, 85, 0
+>37ce	ff ff 55 00			.byte 255, 255, 85, 0
+>37d2	55 55 ff 00			.byte 85, 85, 255, 0
+>37d6	ff 55 ff 00			.byte 255, 85, 255, 0
+>37da	55 ff ff 00			.byte 85, 255, 255, 0
+>37de	ff ff ff 00			.byte 255, 255, 255, 0
+>37e2	00 00 00 00			.byte 0, 0, 0, 0
+>37e6	10 10 10 00			.byte 16, 16, 16, 0
+>37ea	20 20 20 00			.byte 32, 32, 32, 0
+>37ee	35 35 35 00			.byte 53, 53, 53, 0
+>37f2	45 45 45 00			.byte 69, 69, 69, 0
+>37f6	55 55 55 00			.byte 85, 85, 85, 0
+>37fa	65 65 65 00			.byte 101, 101, 101, 0
+>37fe	75 75 75 00			.byte 117, 117, 117, 0
+>3802	8a 8a 8a 00			.byte 138, 138, 138, 0
+>3806	9a 9a 9a 00			.byte 154, 154, 154, 0
+>380a	aa aa aa 00			.byte 170, 170, 170, 0
+>380e	ba ba ba 00			.byte 186, 186, 186, 0
+>3812	ca ca ca 00			.byte 202, 202, 202, 0
+>3816	df df df 00			.byte 223, 223, 223, 0
+>381a	ef ef ef 00			.byte 239, 239, 239, 0
+>381e	ff ff ff 00			.byte 255, 255, 255, 0
+>3822	ff 00 00 00			.byte 255, 0, 0, 0
+>3826	ff 00 41 00			.byte 255, 0, 65, 0
+>382a	ff 00 82 00			.byte 255, 0, 130, 0
+>382e	ff 00 be 00			.byte 255, 0, 190, 0
+>3832	ff 00 ff 00			.byte 255, 0, 255, 0
+>3836	be 00 ff 00			.byte 190, 0, 255, 0
+>383a	82 00 ff 00			.byte 130, 0, 255, 0
+>383e	41 00 ff 00			.byte 65, 0, 255, 0
+>3842	00 00 ff 00			.byte 0, 0, 255, 0
+>3846	00 41 ff 00			.byte 0, 65, 255, 0
+>384a	00 82 ff 00			.byte 0, 130, 255, 0
+>384e	00 be ff 00			.byte 0, 190, 255, 0
+>3852	00 ff ff 00			.byte 0, 255, 255, 0
+>3856	00 ff be 00			.byte 0, 255, 190, 0
+>385a	00 ff 82 00			.byte 0, 255, 130, 0
+>385e	00 ff 41 00			.byte 0, 255, 65, 0
+>3862	00 ff 00 00			.byte 0, 255, 0, 0
+>3866	41 ff 00 00			.byte 65, 255, 0, 0
+>386a	82 ff 00 00			.byte 130, 255, 0, 0
+>386e	be ff 00 00			.byte 190, 255, 0, 0
+>3872	ff ff 00 00			.byte 255, 255, 0, 0
+>3876	ff be 00 00			.byte 255, 190, 0, 0
+>387a	ff 82 00 00			.byte 255, 130, 0, 0
+>387e	ff 41 00 00			.byte 255, 65, 0, 0
+>3882	ff 82 82 00			.byte 255, 130, 130, 0
+>3886	ff 82 9e 00			.byte 255, 130, 158, 0
+>388a	ff 82 be 00			.byte 255, 130, 190, 0
+>388e	ff 82 df 00			.byte 255, 130, 223, 0
+>3892	ff 82 ff 00			.byte 255, 130, 255, 0
+>3896	df 82 ff 00			.byte 223, 130, 255, 0
+>389a	be 82 ff 00			.byte 190, 130, 255, 0
+>389e	9e 82 ff 00			.byte 158, 130, 255, 0
+>38a2	82 82 ff 00			.byte 130, 130, 255, 0
+>38a6	82 9e ff 00			.byte 130, 158, 255, 0
+>38aa	82 be ff 00			.byte 130, 190, 255, 0
+>38ae	82 df ff 00			.byte 130, 223, 255, 0
+>38b2	82 ff ff 00			.byte 130, 255, 255, 0
+>38b6	82 ff df 00			.byte 130, 255, 223, 0
+>38ba	82 ff be 00			.byte 130, 255, 190, 0
+>38be	82 ff 9e 00			.byte 130, 255, 158, 0
+>38c2	82 ff 82 00			.byte 130, 255, 130, 0
+>38c6	9e ff 82 00			.byte 158, 255, 130, 0
+>38ca	be ff 82 00			.byte 190, 255, 130, 0
+>38ce	df ff 82 00			.byte 223, 255, 130, 0
+>38d2	ff ff 82 00			.byte 255, 255, 130, 0
+>38d6	ff df 82 00			.byte 255, 223, 130, 0
+>38da	ff be 82 00			.byte 255, 190, 130, 0
+>38de	ff 9e 82 00			.byte 255, 158, 130, 0
+>38e2	ff ba ba 00			.byte 255, 186, 186, 0
+>38e6	ff ba ca 00			.byte 255, 186, 202, 0
+>38ea	ff ba df 00			.byte 255, 186, 223, 0
+>38ee	ff ba ef 00			.byte 255, 186, 239, 0
+>38f2	ff ba ff 00			.byte 255, 186, 255, 0
+>38f6	ef ba ff 00			.byte 239, 186, 255, 0
+>38fa	df ba ff 00			.byte 223, 186, 255, 0
+>38fe	ca ba ff 00			.byte 202, 186, 255, 0
+>3902	ba ba ff 00			.byte 186, 186, 255, 0
+>3906	ba ca ff 00			.byte 186, 202, 255, 0
+>390a	ba df ff 00			.byte 186, 223, 255, 0
+>390e	ba ef ff 00			.byte 186, 239, 255, 0
+>3912	ba ff ff 00			.byte 186, 255, 255, 0
+>3916	ba ff ef 00			.byte 186, 255, 239, 0
+>391a	ba ff df 00			.byte 186, 255, 223, 0
+>391e	ba ff ca 00			.byte 186, 255, 202, 0
+>3922	ba ff ba 00			.byte 186, 255, 186, 0
+>3926	ca ff ba 00			.byte 202, 255, 186, 0
+>392a	df ff ba 00			.byte 223, 255, 186, 0
+>392e	ef ff ba 00			.byte 239, 255, 186, 0
+>3932	ff ff ba 00			.byte 255, 255, 186, 0
+>3936	ff ef ba 00			.byte 255, 239, 186, 0
+>393a	ff df ba 00			.byte 255, 223, 186, 0
+>393e	ff ca ba 00			.byte 255, 202, 186, 0
+>3942	71 00 00 00			.byte 113, 0, 0, 0
+>3946	71 00 1c 00			.byte 113, 0, 28, 0
+>394a	71 00 39 00			.byte 113, 0, 57, 0
+>394e	71 00 55 00			.byte 113, 0, 85, 0
+>3952	71 00 71 00			.byte 113, 0, 113, 0
+>3956	55 00 71 00			.byte 85, 0, 113, 0
+>395a	39 00 71 00			.byte 57, 0, 113, 0
+>395e	1c 00 71 00			.byte 28, 0, 113, 0
+>3962	00 00 71 00			.byte 0, 0, 113, 0
+>3966	00 1c 71 00			.byte 0, 28, 113, 0
+>396a	00 39 71 00			.byte 0, 57, 113, 0
+>396e	00 55 71 00			.byte 0, 85, 113, 0
+>3972	00 71 71 00			.byte 0, 113, 113, 0
+>3976	00 71 55 00			.byte 0, 113, 85, 0
+>397a	00 71 39 00			.byte 0, 113, 57, 0
+>397e	00 71 1c 00			.byte 0, 113, 28, 0
+>3982	00 71 00 00			.byte 0, 113, 0, 0
+>3986	1c 71 00 00			.byte 28, 113, 0, 0
+>398a	39 71 00 00			.byte 57, 113, 0, 0
+>398e	55 71 00 00			.byte 85, 113, 0, 0
+>3992	71 71 00 00			.byte 113, 113, 0, 0
+>3996	71 55 00 00			.byte 113, 85, 0, 0
+>399a	71 39 00 00			.byte 113, 57, 0, 0
+>399e	71 1c 00 00			.byte 113, 28, 0, 0
+>39a2	71 39 39 00			.byte 113, 57, 57, 0
+>39a6	71 39 45 00			.byte 113, 57, 69, 0
+>39aa	71 39 55 00			.byte 113, 57, 85, 0
+>39ae	71 39 61 00			.byte 113, 57, 97, 0
+>39b2	71 39 71 00			.byte 113, 57, 113, 0
+>39b6	61 39 71 00			.byte 97, 57, 113, 0
+>39ba	55 39 71 00			.byte 85, 57, 113, 0
+>39be	45 39 71 00			.byte 69, 57, 113, 0
+>39c2	39 39 71 00			.byte 57, 57, 113, 0
+>39c6	39 45 71 00			.byte 57, 69, 113, 0
+>39ca	39 55 71 00			.byte 57, 85, 113, 0
+>39ce	39 61 71 00			.byte 57, 97, 113, 0
+>39d2	39 71 71 00			.byte 57, 113, 113, 0
+>39d6	39 71 61 00			.byte 57, 113, 97, 0
+>39da	39 71 55 00			.byte 57, 113, 85, 0
+>39de	39 71 45 00			.byte 57, 113, 69, 0
+>39e2	39 71 39 00			.byte 57, 113, 57, 0
+>39e6	45 71 39 00			.byte 69, 113, 57, 0
+>39ea	55 71 39 00			.byte 85, 113, 57, 0
+>39ee	61 71 39 00			.byte 97, 113, 57, 0
+>39f2	71 71 39 00			.byte 113, 113, 57, 0
+>39f6	71 61 39 00			.byte 113, 97, 57, 0
+>39fa	71 55 39 00			.byte 113, 85, 57, 0
+>39fe	71 45 39 00			.byte 113, 69, 57, 0
+>3a02	71 51 51 00			.byte 113, 81, 81, 0
+>3a06	71 51 59 00			.byte 113, 81, 89, 0
+>3a0a	71 51 61 00			.byte 113, 81, 97, 0
+>3a0e	71 51 69 00			.byte 113, 81, 105, 0
+>3a12	71 51 71 00			.byte 113, 81, 113, 0
+>3a16	69 51 71 00			.byte 105, 81, 113, 0
+>3a1a	61 51 71 00			.byte 97, 81, 113, 0
+>3a1e	59 51 71 00			.byte 89, 81, 113, 0
+>3a22	51 51 71 00			.byte 81, 81, 113, 0
+>3a26	51 59 71 00			.byte 81, 89, 113, 0
+>3a2a	51 61 71 00			.byte 81, 97, 113, 0
+>3a2e	51 69 71 00			.byte 81, 105, 113, 0
+>3a32	51 71 71 00			.byte 81, 113, 113, 0
+>3a36	51 71 69 00			.byte 81, 113, 105, 0
+>3a3a	51 71 61 00			.byte 81, 113, 97, 0
+>3a3e	51 71 59 00			.byte 81, 113, 89, 0
+>3a42	51 71 51 00			.byte 81, 113, 81, 0
+>3a46	59 71 51 00			.byte 89, 113, 81, 0
+>3a4a	61 71 51 00			.byte 97, 113, 81, 0
+>3a4e	69 71 51 00			.byte 105, 113, 81, 0
+>3a52	71 71 51 00			.byte 113, 113, 81, 0
+>3a56	71 69 51 00			.byte 113, 105, 81, 0
+>3a5a	71 61 51 00			.byte 113, 97, 81, 0
+>3a5e	71 59 51 00			.byte 113, 89, 81, 0
+>3a62	41 00 00 00			.byte 65, 0, 0, 0
+>3a66	41 00 10 00			.byte 65, 0, 16, 0
+>3a6a	41 00 20 00			.byte 65, 0, 32, 0
+>3a6e	41 00 31 00			.byte 65, 0, 49, 0
+>3a72	41 00 41 00			.byte 65, 0, 65, 0
+>3a76	31 00 41 00			.byte 49, 0, 65, 0
+>3a7a	20 00 41 00			.byte 32, 0, 65, 0
+>3a7e	10 00 41 00			.byte 16, 0, 65, 0
+>3a82	00 00 41 00			.byte 0, 0, 65, 0
+>3a86	00 10 41 00			.byte 0, 16, 65, 0
+>3a8a	00 20 41 00			.byte 0, 32, 65, 0
+>3a8e	00 31 41 00			.byte 0, 49, 65, 0
+>3a92	00 41 41 00			.byte 0, 65, 65, 0
+>3a96	00 41 31 00			.byte 0, 65, 49, 0
+>3a9a	00 41 20 00			.byte 0, 65, 32, 0
+>3a9e	00 41 10 00			.byte 0, 65, 16, 0
+>3aa2	00 41 00 00			.byte 0, 65, 0, 0
+>3aa6	10 41 00 00			.byte 16, 65, 0, 0
+>3aaa	20 41 00 00			.byte 32, 65, 0, 0
+>3aae	31 41 00 00			.byte 49, 65, 0, 0
+>3ab2	41 41 00 00			.byte 65, 65, 0, 0
+>3ab6	41 31 00 00			.byte 65, 49, 0, 0
+>3aba	41 20 00 00			.byte 65, 32, 0, 0
+>3abe	41 10 00 00			.byte 65, 16, 0, 0
+>3ac2	41 20 20 00			.byte 65, 32, 32, 0
+>3ac6	41 20 28 00			.byte 65, 32, 40, 0
+>3aca	41 20 31 00			.byte 65, 32, 49, 0
+>3ace	41 20 39 00			.byte 65, 32, 57, 0
+>3ad2	41 20 41 00			.byte 65, 32, 65, 0
+>3ad6	39 20 41 00			.byte 57, 32, 65, 0
+>3ada	31 20 41 00			.byte 49, 32, 65, 0
+>3ade	28 20 41 00			.byte 40, 32, 65, 0
+>3ae2	20 20 41 00			.byte 32, 32, 65, 0
+>3ae6	20 28 41 00			.byte 32, 40, 65, 0
+>3aea	20 31 41 00			.byte 32, 49, 65, 0
+>3aee	20 39 41 00			.byte 32, 57, 65, 0
+>3af2	20 41 41 00			.byte 32, 65, 65, 0
+>3af6	20 41 39 00			.byte 32, 65, 57, 0
+>3afa	20 41 31 00			.byte 32, 65, 49, 0
+>3afe	20 41 28 00			.byte 32, 65, 40, 0
+>3b02	20 41 20 00			.byte 32, 65, 32, 0
+>3b06	28 41 20 00			.byte 40, 65, 32, 0
+>3b0a	31 41 20 00			.byte 49, 65, 32, 0
+>3b0e	39 41 20 00			.byte 57, 65, 32, 0
+>3b12	41 41 20 00			.byte 65, 65, 32, 0
+>3b16	41 39 20 00			.byte 65, 57, 32, 0
+>3b1a	41 31 20 00			.byte 65, 49, 32, 0
+>3b1e	41 28 20 00			.byte 65, 40, 32, 0
+>3b22	41 2d 2d 00			.byte 65, 45, 45, 0
+>3b26	41 2d 31 00			.byte 65, 45, 49, 0
+>3b2a	41 2d 35 00			.byte 65, 45, 53, 0
+>3b2e	41 2d 3d 00			.byte 65, 45, 61, 0
+>3b32	41 2d 41 00			.byte 65, 45, 65, 0
+>3b36	3d 2d 41 00			.byte 61, 45, 65, 0
+>3b3a	35 2d 41 00			.byte 53, 45, 65, 0
+>3b3e	31 2d 41 00			.byte 49, 45, 65, 0
+>3b42	2d 2d 41 00			.byte 45, 45, 65, 0
+>3b46	2d 31 41 00			.byte 45, 49, 65, 0
+>3b4a	2d 35 41 00			.byte 45, 53, 65, 0
+>3b4e	2d 3d 41 00			.byte 45, 61, 65, 0
+>3b52	2d 41 41 00			.byte 45, 65, 65, 0
+>3b56	2d 41 3d 00			.byte 45, 65, 61, 0
+>3b5a	2d 41 35 00			.byte 45, 65, 53, 0
+>3b5e	2d 41 31 00			.byte 45, 65, 49, 0
+>3b62	2d 41 2d 00			.byte 45, 65, 45, 0
+>3b66	31 41 2d 00			.byte 49, 65, 45, 0
+>3b6a	35 41 2d 00			.byte 53, 65, 45, 0
+>3b6e	3d 41 2d 00			.byte 61, 65, 45, 0
+>3b72	41 41 2d 00			.byte 65, 65, 45, 0
+>3b76	41 3d 2d 00			.byte 65, 61, 45, 0
+>3b7a	41 35 2d 00			.byte 65, 53, 45, 0
+>3b7e	41 31 2d 00			.byte 65, 49, 45, 0
+>3b82	00 00 00 00			.byte 0, 0, 0, 0
+>3b86	00 00 00 00			.byte 0, 0, 0, 0
+>3b8a	00 00 00 00			.byte 0, 0, 0, 0
+>3b8e	00 00 00 00			.byte 0, 0, 0, 0
+>3b92	00 00 00 00			.byte 0, 0, 0, 0
+>3b96	00 00 00 00			.byte 0, 0, 0, 0
+>3b9a	00 00 00 00			.byte 0, 0, 0, 0
+>3b9e	00 00 00 00			.byte 0, 0, 0, 0
+=$003ba2				LUT_END = *
 
 ;******  Return to file: src\spaceship.s
 
@@ -2538,41 +2699,118 @@
 ;******  Return to file: src\spaceship.s
 
 
+;******  Processing file: src\rsrc/purple_flier.s
+
+=$1118ac				PURPLE_START = *
+>1118ac	2f 00 02 29 1e 00 02 29		.byte 47, 0, 2, 41, 30, 0, 2, 41, 29, 0, 1, 41, 2, 42, 1, 41
+>1118b4	1d 00 01 29 02 2a 01 29
+>1118bc	1c 00 01 2a 02 2c 01 2a		.byte 28, 0, 1, 42, 2, 44, 1, 42, 28, 0, 1, 44, 2, 53, 1, 44
+>1118c4	1c 00 01 2c 02 35 01 2c
+>1118cc	1c 00 01 35 02 64 01 35		.byte 28, 0, 1, 53, 2, 100, 1, 53, 18, 0, 4, 19, 6, 0, 1, 19
+>1118d4	12 00 04 13 06 00 01 13
+>1118dc	02 64 01 13 06 00 04 13		.byte 2, 100, 1, 19, 6, 0, 4, 19, 8, 0, 4, 107, 6, 0, 4, 107
+>1118e4	08 00 04 6b 06 00 04 6b
+>1118ec	06 00 04 6b 08 00 01 6b		.byte 6, 0, 4, 107, 8, 0, 1, 107, 2, 108, 1, 107, 5, 0, 1, 179
+>1118f4	02 6c 01 6b 05 00 01 b3
+>1118fc	01 6b 02 6c 01 6b 01 b3		.byte 1, 107, 2, 108, 1, 107, 1, 179, 5, 0, 1, 107, 2, 108, 1, 107
+>111904	05 00 01 6b 02 6c 01 6b
+>11190c	07 00 01 b3 01 6b 02 6c		.byte 7, 0, 1, 179, 1, 107, 2, 108, 1, 107, 1, 179, 1, 0, 4, 179
+>111914	01 6b 01 b3 01 00 04 b3
+>11191c	01 6b 02 16 01 6b 04 b3		.byte 1, 107, 2, 22, 1, 107, 4, 179, 1, 0, 1, 179, 1, 107, 2, 108
+>111924	01 00 01 b3 01 6b 02 6c
+>11192c	01 6b 01 b3 06 00 01 b3		.byte 1, 107, 1, 179, 6, 0, 1, 179, 1, 107, 2, 108, 1, 107, 2, 179
+>111934	01 6b 02 6c 01 6b 02 b3
+>11193c	03 6b 01 b3 01 6b 02 16		.byte 3, 107, 1, 179, 1, 107, 2, 22, 1, 107, 1, 179, 3, 107, 2, 179
+>111944	01 6b 01 b3 03 6b 02 b3
+>11194c	01 6b 02 6c 01 6b 01 b3		.byte 1, 107, 2, 108, 1, 107, 1, 179, 6, 0, 1, 179, 1, 107, 2, 108
+>111954	06 00 01 b3 01 6b 02 6c
+>11195c	01 6b 01 b3 01 6b 03 6c		.byte 1, 107, 1, 179, 1, 107, 3, 108, 1, 179, 1, 107, 2, 57, 1, 107
+>111964	01 b3 01 6b 02 39 01 6b
+>11196c	01 b3 03 6c 01 6b 01 b3		.byte 1, 179, 3, 108, 1, 107, 1, 179, 1, 107, 2, 108, 1, 107, 1, 179
+>111974	01 6b 02 6c 01 6b 01 b3
+>11197c	06 00 01 b3 01 6b 02 6c		.byte 6, 0, 1, 179, 1, 107, 2, 108, 1, 107, 1, 179, 1, 107, 3, 108
+>111984	01 6b 01 b3 01 6b 03 6c
+>11198c	01 b3 01 6b 02 39 01 6b		.byte 1, 179, 1, 107, 2, 57, 1, 107, 1, 179, 3, 108, 1, 107, 1, 179
+>111994	01 b3 03 6c 01 6b 01 b3
+>11199c	01 6b 02 6c 01 6b 01 b3		.byte 1, 107, 2, 108, 1, 107, 1, 179, 6, 0, 1, 179, 1, 107, 2, 108
+>1119a4	06 00 01 b3 01 6b 02 6c
+>1119ac	01 6b 02 b3 03 6b 01 b3		.byte 1, 107, 2, 179, 3, 107, 1, 179, 1, 107, 2, 57, 1, 107, 1, 179
+>1119b4	01 6b 02 39 01 6b 01 b3
+>1119bc	03 6b 02 b3 01 6b 02 6c		.byte 3, 107, 2, 179, 1, 107, 2, 108, 1, 107, 1, 179, 6, 0, 1, 179
+>1119c4	01 6b 01 b3 06 00 01 b3
+>1119cc	01 6b 02 6c 01 6b 01 b3		.byte 1, 107, 2, 108, 1, 107, 1, 179, 1, 0, 4, 179, 1, 107, 2, 108
+>1119d4	01 00 04 b3 01 6b 02 6c
+>1119dc	01 6b 04 b3 01 00 01 b3		.byte 1, 107, 4, 179, 1, 0, 1, 179, 1, 107, 2, 108, 1, 107, 1, 179
+>1119e4	01 6b 02 6c 01 6b 01 b3
+>1119ec	07 00 01 6b 02 6c 01 6b		.byte 7, 0, 1, 107, 2, 108, 1, 107, 5, 0, 1, 179, 1, 107, 2, 108
+>1119f4	05 00 01 b3 01 6b 02 6c
+>1119fc	01 6b 01 b3 05 00 01 6b		.byte 1, 107, 1, 179, 5, 0, 1, 107, 2, 108, 1, 107, 8, 0, 1, 107
+>111a04	02 6c 01 6b 08 00 01 6b
+>111a0c	02 6c 01 6b 06 00 01 6b		.byte 2, 108, 1, 107, 6, 0, 1, 107, 2, 108, 1, 107, 6, 0, 1, 107
+>111a14	02 6c 01 6b 06 00 01 6b
+>111a1c	02 6c 01 6b 08 00 01 6b		.byte 2, 108, 1, 107, 8, 0, 1, 107, 2, 108, 1, 107, 6, 0, 1, 107
+>111a24	02 6c 01 6b 06 00 01 6b
+>111a2c	02 6c 01 6b 06 00 01 6b		.byte 2, 108, 1, 107, 6, 0, 1, 107, 2, 108, 1, 107, 8, 0, 1, 107
+>111a34	02 6c 01 6b 08 00 01 6b
+>111a3c	02 6c 01 6b 06 00 01 6b		.byte 2, 108, 1, 107, 6, 0, 1, 107, 2, 108, 1, 107, 6, 0, 1, 107
+>111a44	02 6c 01 6b 06 00 01 6b
+>111a4c	02 6c 01 6b 08 00 04 6b		.byte 2, 108, 1, 107, 8, 0, 4, 107, 6, 0, 1, 107, 2, 108, 1, 107
+>111a54	06 00 01 6b 02 6c 01 6b
+>111a5c	06 00 04 6b 08 00 01 2a		.byte 6, 0, 4, 107, 8, 0, 1, 42, 1, 39, 1, 42, 1, 39, 6, 0
+>111a64	01 27 01 2a 01 27 06 00
+>111a6c	01 6b 02 6c 01 6b 06 00		.byte 1, 107, 2, 108, 1, 107, 6, 0, 1, 42, 1, 39, 1, 42, 1, 39
+>111a74	01 2a 01 27 01 2a 01 27
+>111a7c	08 00 01 2a 01 27 01 2a		.byte 8, 0, 1, 42, 1, 39, 1, 42, 1, 39, 6, 0, 1, 107, 2, 108
+>111a84	01 27 06 00 01 6b 02 6c
+>111a8c	01 6b 06 00 01 2a 01 27		.byte 1, 107, 6, 0, 1, 42, 1, 39, 1, 42, 1, 39, 18, 0, 1, 107
+>111a94	01 2a 01 27 12 00 01 6b
+>111a9c	02 6c 01 6b 1c 00 04 6b		.byte 2, 108, 1, 107, 28, 0, 4, 107, 28, 0, 1, 107, 2, 179, 1, 107
+>111aa4	1c 00 01 6b 02 b3 01 6b
+>111aac	1c 00 01 6b 02 00 01 6b		.byte 28, 0, 1, 107, 2, 0, 1, 107, 28, 0, 1, 107, 2, 0, 1, 107
+>111ab4	1c 00 01 6b 02 00 01 6b
+>111abc	1c 00 01 27 02 00 01 27		.byte 28, 0, 1, 39, 2, 0, 1, 39, 28, 0, 1, 39, 2, 0, 1, 39
+>111ac4	1c 00 01 27 02 00 01 27
+>111acc	4e 00				.byte 78, 0
+>111ace	00 00				.byte 0, 0
+
+;******  Return to file: src\spaceship.s
+
+
 ;******  Processing file: src\rsrc/tone_pew.s
 
-.1118ac					TONE_PEW
->1118ac	01				            .byte TONE_SET_ATTEN
->1118ad	0f 00				            .word $F
->1118af	02				            .byte TONE_SET_FREQ
->1118b0	7c 00				            .word 3575800 / (32 * 900)
->1118b2	05				            .byte TONE_START_ENV
->1118b3	00 00				            .word 0
->1118b5	03				            .byte TONE_WAIT
->1118b6	0a 00				            .word 10
->1118b8	02				            .byte TONE_SET_FREQ
->1118b9	83 00				            .word 3575800 / (32 * 850)
->1118bb	03				            .byte TONE_WAIT
->1118bc	01 00				            .word 1
->1118be	02				            .byte TONE_SET_FREQ
->1118bf	8b 00				            .word 3575800 / (32 * 800)
->1118c1	03				            .byte TONE_WAIT
->1118c2	01 00				            .word 1
->1118c4	02				            .byte TONE_SET_FREQ
->1118c5	94 00				            .word 3575800 / (32 * 750)
->1118c7	03				            .byte TONE_WAIT
->1118c8	01 00				            .word 1
->1118ca	02				            .byte TONE_SET_FREQ
->1118cb	9f 00				            .word 3575800 / (32 * 700)
->1118cd	03				            .byte TONE_WAIT
->1118ce	01 00				            .word 1
->1118d0	02				            .byte TONE_SET_FREQ
->1118d1	ab 00				            .word 3575800 / (32 * 650)
->1118d3	03				            .byte TONE_WAIT
->1118d4	01 00				            .word 1
->1118d6	06				            .byte TONE_RELEASE
->1118d7	00 00				            .word 0
->1118d9	00				            .byte TONE_FINISH
->1118da	00 00				            .word 0
+.111ad0					TONE_PEW
+>111ad0	01				            .byte TONE_SET_ATTEN
+>111ad1	0f 00				            .word $F
+>111ad3	02				            .byte TONE_SET_FREQ
+>111ad4	7c 00				            .word 3575800 / (32 * 900)
+>111ad6	05				            .byte TONE_START_ENV
+>111ad7	00 00				            .word 0
+>111ad9	03				            .byte TONE_WAIT
+>111ada	0a 00				            .word 10
+>111adc	02				            .byte TONE_SET_FREQ
+>111add	83 00				            .word 3575800 / (32 * 850)
+>111adf	03				            .byte TONE_WAIT
+>111ae0	01 00				            .word 1
+>111ae2	02				            .byte TONE_SET_FREQ
+>111ae3	8b 00				            .word 3575800 / (32 * 800)
+>111ae5	03				            .byte TONE_WAIT
+>111ae6	01 00				            .word 1
+>111ae8	02				            .byte TONE_SET_FREQ
+>111ae9	94 00				            .word 3575800 / (32 * 750)
+>111aeb	03				            .byte TONE_WAIT
+>111aec	01 00				            .word 1
+>111aee	02				            .byte TONE_SET_FREQ
+>111aef	9f 00				            .word 3575800 / (32 * 700)
+>111af1	03				            .byte TONE_WAIT
+>111af2	01 00				            .word 1
+>111af4	02				            .byte TONE_SET_FREQ
+>111af5	ab 00				            .word 3575800 / (32 * 650)
+>111af7	03				            .byte TONE_WAIT
+>111af8	01 00				            .word 1
+>111afa	06				            .byte TONE_RELEASE
+>111afb	00 00				            .word 0
+>111afd	00				            .byte TONE_FINISH
+>111afe	00 00				            .word 0
 
 ;******  Return to file: src\spaceship.s
 

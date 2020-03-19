@@ -57,7 +57,8 @@ HIRQ = $00FFEE                      ; IRQ hardware vector
 VSHIP_STILL = $B00000               ; Address in VRAM of sprite image for the stationary space ship
 VSHIP_UP = VSHIP_STILL + 32*32      ; Address in VRAM of the sprite image data for the ship pointing up
 VTORPEDO = VSHIP_UP + 5*32*32       ; Address in VRAM of the torpedo sprite image data
-VSTARS = VTORPEDO + 8*32*32         ; Address of the star field tiles in VRAM
+VPURPLE = VTORPEDO + 8*32*32        ; Address in VRAM of the purple flier image data
+VSTARS = VPURPLE + 2*32*32          ; Address of the star field tiles in VRAM
 
 SP_OFF_ADDR = 1                     ; Offset to the address register for a sprite
 SP_OFF_X = 4                        ; Offset to the x coordinate register for a sprite
@@ -87,6 +88,8 @@ STATUS          .byte ?             ; A status word for controlling the main loo
 START_OF_SPRITES = *
 SHIP            .dstruct SPRITE     ; The sprite variables for the ship
 TORPEDO         .dstruct SPRITE     ; The sprite variables for the torpedo
+START_POOL = *                      ; First of the available sprites
+ENEMY           .dstruct SPRITE     ; The enemy ship
 END_OF_SPRITES  = *
 .send
 
@@ -102,22 +105,23 @@ START           CLC                 ; Start up in native mode
                 setdp SRCPTR
 
                 setas
-                LDA #$FF            ; Set the noise volume to -1 as a sentinel value
+                LDA #$FF                ; Set the noise volume to -1 as a sentinel value
                 STA NOISEVOL
 
                 setaxl
 
-                SEI                 ; Turn off interrupts
-                JSR INITRNG         ; Initialize the random number generator
-                JSR LOADRSRC        ; Load the resources into video memory
-                JSR INITGRAPH       ; Set up the graphics
-                JSR INITTONE        ; Initialize the tone player engine
-                JSR INITSTARS       ; Initialize the star field
-                JSR INITPLAYER      ; Initialize the player sprite
-                JSR INITTORPEDO     ; Initialize the torpedo sprite
+                SEI                     ; Turn off interrupts
+                JSR INITRNG             ; Initialize the random number generator
+                JSR LOADRSRC            ; Load the resources into video memory
+                JSR INITGRAPH           ; Set up the graphics
+                JSR INITTONE            ; Initialize the tone player engine
+                JSR INITSTARS           ; Initialize the star field
+                JSR INITSPRITES         ; Do initial setup of sprites
+                JSR INITPLAYER          ; Initialize the player sprite
+                JSR INITTORPEDO         ; Initialize the torpedo sprite
                 JSR UPDATE
-                JSR INITIRQ         ; Set up interrupts
-                CLI                 ; Turn interrupts back on
+                JSR INITIRQ             ; Set up interrupts
+                CLI                     ; Turn interrupts back on
 
 main_loop       setal
                 WAI                     ; Wait for interrupt
@@ -130,73 +134,6 @@ main_loop       setal
 
                 JSR ANIMATE             ; Animate all the active sprites
                 BRA main_loop
-
-;
-; Set if player is moving
-;
-; Update sounds and frame animations based on if the player is moving.
-;
-; Inputs:
-;   SHIP.DX, SHIP.DY = indicate movement in X or Y direction
-;
-SHIPMOVE        .proc
-                PHP
-
-                SEI
-
-                setal
-                LDA SHIP.DX         ; If DX <> 0 or DY <> 0, the ship is moving
-                BNE is_moving
-                LDA SHIP.DY
-                BNE is_moving
-
-                ; Ship is not moving
-
-                LDA SHIP.WASMOVING  ; Don't do anything if the ship was already stationary
-                BEQ done
-
-                LDA #$FF            ; Turn off the engine noise
-                JSR NOISE
-
-                LDA #<>VSHIP_STILL  ; Sprite should be of a stationary ship
-                STA SHIP.BASEADDR
-                SEC
-                LDA #`VSHIP_STILL
-                SBC #$B0
-                STA SHIP.BASEADDR+2
-
-                LDA #1              ; There is only the one frame
-                STA SHIP.FRAMECOUNT
-                STZ SHIP.FRAME
-
-                STZ SHIP.WASMOVING  ; Set that the ship is no longer moving
-
-                BRA done
-
-is_moving       LDA SHIP.WASMOVING  ; Don't update if ship was already moving
-                CMP #1
-                BEQ done
-
-                LDA #7              ; Turn on the engine noise
-                JSR NOISE
-
-                LDA #<>VSHIP_UP     ; Sprite should be of a flying ship
-                STA SHIP.BASEADDR
-                SEC
-                LDA #`VSHIP_UP
-                SBC #$B0
-                STA SHIP.BASEADDR+2
-
-                LDA #5              ; There are five frames in this animation
-                STA SHIP.FRAMECOUNT
-                STZ SHIP.FRAME
-
-                LDA #1              ; Set that the ship is now moving
-                STA SHIP.WASMOVING
-
-done            PLP
-                RTS
-                .pend
 
 ;
 ; Make a noise of a given volume
@@ -246,68 +183,6 @@ INITRNG         .proc
                 STA @l GABE_RNG_CTRL
 
                 PLP
-                RTS
-                .pend
-
-;
-; Check joystick
-;
-CHECKJOY        .proc
-                PHP
-
-                SEI
-
-                setal
-                STZ SHIP.DX
-                STZ SHIP.DY
-
-                setas
-                LDA @l JOYSTICK0    ; Get the first joystick
-                setal
-                AND #$00FF
-                STA JOY0
-
-                BIT #%00010000      ; Has the button been pushed?
-                BNE check_move      ; No: check the movement buttons
-
-                JSR FIRE            ; Yes: fire the torpedo
-
-check_move      BIT #%00001000
-                BEQ right
-                BIT #%00000100
-                BNE check_ud
-
-left            setal               ; Set the x-coordinate delta to negative
-                LDA SHIPSPEED
-                EOR #$FFFF
-                INC A
-                STA SHIP.DX
-                BRA check_ud
-
-right           setal               ; Set the x-coordinate delta to positive
-                LDA SHIPSPEED
-                STA SHIP.DX
-
-check_ud        LDA JOY0
-                BIT #%00000010
-                BEQ down
-                BIT #%00000001
-                BNE set_move
-
-up              setal               ; Set the y-coordinate delta to negative
-                LDA SHIPSPEED
-                EOR #$FFFF
-                INC A
-                STA SHIP.DY
-                BRA set_move
-
-down            setal               ; Set the y-coordinate delta to positive
-                LDA SHIPSPEED
-                STA SHIP.DY
-
-set_move        JSR SHIPMOVE        ; Set whether or not the ship is moving
-
-done            PLP
                 RTS
                 .pend
 
@@ -376,205 +251,6 @@ set_tile        STA @l TILE_MAP0,X                          ; Save it to the til
 
 set_clear       LDA #0                                      ; Most of tiles will be clear
                 BRA set_tile
-                .pend
-
-;
-; Initialize the player sprite
-;
-INITPLAYER      .proc
-                PHP
-
-                setal
-                LDA #<>SP00_CONTROL_REG     ; Set the address of the sprite registers
-                STA SHIP.SPRITEADDR
-
-                LDA #6                      ; Set the frame delay count
-                STA SHIP.DELAYDEFAULT
-
-                LDA #1                      ; Set the movement delay count
-                STA SHIP.MOVEDELDEF
-
-                LDA #2                      ; Set the default speed of the ship
-                STA SHIPSPEED
-
-                LDA #320 - 16               ; Put the sprite in the middle of the screen
-                STA SHIP.X
-                LDA #240 - 16
-                STA SHIP.Y
-
-                STZ SHIP.DX                 ; Stationary
-                STZ SHIP.DY
-
-                JSR SHIPMOVE                ; Set the sound and graphics for a non-moving ship
-
-                STZ SHIP.FRAME              ; Initial frame
-                LDA #1
-                STA SHIP.FRAMECOUNT         ; 0 frames in the animation
-                LDA SHIP.DELAYDEFAULT
-                STA SHIP.FRAMEDELAY         ; Set the frame delay counter
-
-                LDA SHIP.MOVEDELDEF         ; Set the movement delay counter
-                STA SHIP.MOVEDELAY
-
-                LDA #$FFFF
-                STA SHIP.WASMOVING          ; Set ship was moving flag to sentinel value
-
-                LDA #<>ANIMPLAYER           ; Set the animation procedure for the sprite
-                STA SHIP.ANIMPROC
-
-                setas
-                LDA #SP_STAT_ACTIVE | SP_STAT_UPDATE
-                STA SHIP.STATUS             ; Flag the ship as active and ready for an update
-
-                PLP
-                RTS
-                .pend
-
-;
-; Update the animation frames for the player sprite and the location based on DX and DY
-;
-ANIMPLAYER      .proc
-                PHP
-
-                setdbr 0
-                setdp SRCPTR
-                
-                LDA SHIP.X
-                BPL check_right             ; X >= 0?
-                STZ SHIP.X                  ; No: Lock it to 0
-                BRA check_top
-check_right     CMP BOUNDARY_R              ; X >= the right most position?
-                BLT check_top               ; No: we're good
-                LDA BOUNDARY_R              ; Yes: lock it to the right most position
-                STA SHIP.X
-
-check_top       LDA SHIP.Y
-                BPL check_bottom            ; Y >= 0?
-                STZ SHIP.Y                  ; No: Lock it to 0
-                BRA check_top
-check_bottom    CMP BOUNDARY_B              ; X >= the right most position?
-                BLT done                    ; No: we're good
-                LDA BOUNDARY_B              ; Yes: lock it to the right most position
-                STA SHIP.Y
-
-done            PLP
-                RTS
-                .pend
-
-;;
-;; Torpedo
-;;
-
-;
-; Initialize the torpedo sprite
-;
-INITTORPEDO     .proc
-                PHP
-
-                setal
-                LDA #<>SP01_CONTROL_REG     ; Set the address of the sprite registers
-                STA TORPEDO.SPRITEADDR
-
-                LDA #6                      ; Set the frame delay count
-                STA TORPEDO.DELAYDEFAULT
-
-                LDA #1                      ; Set the movement delay count
-                STA TORPEDO.MOVEDELDEF
-
-                LDA #320 - 16               ; Put the sprite in the middle of the screen
-                STA TORPEDO.X               ; This should be set on FIRE
-                LDA #240 - 16
-                STA TORPEDO.Y
-
-                STZ TORPEDO.DX              ; Stationary
-                LDA #$FFFC                  ; -4 in the Y direction
-                STA TORPEDO.DY
-
-                LDA #$FFFF                  ; Set initial frame to -1 to keep it inactive until FIRE
-                STA TORPEDO.FRAME
-                LDA #8
-                STA TORPEDO.FRAMECOUNT      ; 0 frames in the animation
-                LDA TORPEDO.DELAYDEFAULT
-                STA TORPEDO.FRAMEDELAY      ; Set the frame delay counter
-
-                LDA #<>VTORPEDO             ; Sprite should be of a torpedo
-                STA TORPEDO.BASEADDR
-                SEC
-                LDA #`VTORPEDO
-                SBC #$B0
-                STA TORPEDO.BASEADDR+2
-
-                LDA TORPEDO.MOVEDELDEF      ; Set the movement delay counter
-                STA TORPEDO.MOVEDELAY
-
-                LDA #<>ANIMTORPEDO           ; Set the animation procedure for the sprite
-                STA TORPEDO.ANIMPROC
-
-                PLP
-                RTS
-                .pend
-
-;
-; Fire a torpedo
-;
-FIRE            .proc
-                PHA
-                PHP
-
-                setal
-                LDA TORPEDO.FRAME           ; Is the torpedo already on the screen?
-                BPL done                    ; Yes: we don't fire again
-
-                LDA SHIP.X                  ; Set the torpedo position to be the same as the ship
-                STA TORPEDO.X
-                LDA SHIP.Y
-                STA TORPEDO.Y
-
-                LDA #0                      ; Set the starting frame
-                STA TORPEDO.FRAME
-
-                setas                       ; Display the torpedo
-
-                LDA #SP_STAT_ACTIVE | SP_STAT_UPDATE
-                STA TORPEDO.STATUS          ; Make the torpedo sprite active and ready for update
-
-                LDA #$01
-                STA @l SP01_CONTROL_REG
-
-                setal
-                LDA #<>TONE_PEW             ; Queue playing the PEW sound
-                STA TONEPTR
-                LDA #`TONE_PEW
-                STA TONEPTR+2
-                STZ TONECOUNT
-
-done            PLP
-                PLA
-                RTS
-                .pend
-
-;
-; Animate the torpedo
-;
-ANIMTORPEDO     .proc
-                PHP
-
-                LDA TORPEDO.Y               ; Check the height
-                BMI cancel                  ; If above the first line, cancel it
-                BNE done                    ; If not at the top, we're done
-
-cancel          LDA #$FFFF                  ; If at top, stop processing the torpedo
-                STA TORPEDO.FRAME
-
-                setas                       ; And turn off the hardware sprite
-                LDA #0
-                STA @l SP01_CONTROL_REG
-
-                LDA #0
-                STA TORPEDO.STATUS          ; Deactivate the torpedo sprite
-
-done            PLP
-                RTS
                 .pend
 
 ;;
@@ -753,129 +429,94 @@ done            PLP
                 .pend
 
 ;
-; Load graphics resources into video memory
+; Initialize the sprite records
 ;
-LOADRSRC        .proc
+INITSPRITES     .proc
                 PHP
+
+                setdbr 0
+                setdp SRCPTR
+
                 setaxl
+                LDX #<>START_OF_SPRITES
+                LDA #<>SP00_CONTROL_REG
 
-                ; Load the ship sprite stationary data
+loop            STA SPRITE.SPRITEADDR,X         ; Set the address of the hardware sprite registers
+                CLC                             ; Point to the next hardware sprite register set
+                ADC #8                          ; <>(SP01_CONTROL_REG - SP00_CONTROL_REG)
+                STA TEMP                        ; Save the address to temporary
 
-                LDA #<>SHIP_STATIONARY  ; Set source address to RLE data of the ship pointing up
-                STA SRCPTR
-                LDA #`SHIP_STATIONARY
-                STA SRCPTR+2
+                STZ SPRITE.X,X                  ; Zero out most of the parameters
+                STZ SPRITE.Y,X
+                STZ SPRITE.DX,X
+                STZ SPRITE.DY,X
+                STZ SPRITE.BASEADDR,X
+                STZ SPRITE.BASEADDR+2,X
+                STZ SPRITE.FRAME,X
+                STZ SPRITE.FRAMECOUNT,X
+                STZ SPRITE.FRAMEDELAY,X
+                STZ SPRITE.DELAYDEFAULT,X
+                STZ SPRITE.MOVEDELAY,X
+                STZ SPRITE.MOVEDELDEF,X
+                STZ SPRITE.ANIMPROC,X
 
-                LDA #<>VSHIP_STILL      ; Set the destination address to the location in VRAM where the sprite should be
-                STA DSTPTR
-                LDA #`VSHIP_STILL
-                STA DSTPTR+2
+                setas
+                STZ SPRITE.STATUS,X             ; Set status to 0
+                setal
 
-                JSR EXPANDRLE           ; And expand the RLE data into VRAM
+                TXA                             ; Point to the next sprite record
+                CLC
+                ADC #SIZE(SPRITE)
+                TAX
 
-                ; Load the ship sprite moving data
-
-                LDA #<>SHIP_UP          ; Set source address to RLE data of the ship pointing up
-                STA SRCPTR
-                LDA #`SHIP_UP
-                STA SRCPTR+2
-
-                LDA #<>VSHIP_UP         ; Set the destination address to the location in VRAM where the sprite should be
-                STA DSTPTR
-                LDA #`VSHIP_UP
-                STA DSTPTR+2
-
-                JSR EXPANDRLE           ; And expand the RLE data into VRAM
-
-                ; Load the torpedo data
-
-                LDA #<>TORPEDO_START    ; Set source address to RLE data of the torpedo
-                STA SRCPTR
-                LDA #`TORPEDO_START
-                STA SRCPTR+2
-
-                LDA #<>VTORPEDO         ; Set the destination address to the location in VRAM where the sprite should be
-                STA DSTPTR
-                LDA #`VTORPEDO
-                STA DSTPTR+2
-
-                JSR EXPANDRLE           ; And expand the RLE data into VRAM
-
-                ; Load the star field tiles
-
-                LDA #<>STARS_START      ; Set source address to RLE data of the star field
-                STA SRCPTR
-                LDA #`STARS_START
-                STA SRCPTR+2
-
-                LDA #<>VSTARS           ; Set the destination address to the location in VRAM where the star field should be
-                STA DSTPTR
-                LDA #`VSTARS
-                STA DSTPTR+2
-
-                JSR EXPANDRLE           ; And expand the RLE data into VRAM
-
-                ; Set up the color look up table
-
-                LDX #<>LUT_START        ; Copy the color pallette to Vicky
-                LDY #<>GRPH_LUT1_PTR
-                LDA #256 * 4
-                MVN `LUT_START,`GRPH_LUT1_PTR
+                LDA TEMP                        ; Get the address of the next sprite register block
+                CPX #<>END_OF_SPRITES           ; Check to see if we've reached the end
+                BNE loop                        ; No: keep initializing
 
                 PLP
                 RTS
                 .pend
 
 ;
-; Expand a run-length-encoded image into memory
+; Find an inactive sprite record
 ;
-EXPANDRLE       .proc
+; Returns
+;   X = pointer to the sprite record
+;   Carry set if inactive record found, clear if all are in use.
+;
+FINDSPRITE      .proc
                 PHP
-                setas
-                STZ COUNT           ; Make sure COUNT is in a known good state
-                STZ COUNT+1
 
-pair_loop       LDY #0
-                LDA [SRCPTR],Y      ; Get the count of bytes to transfer
-                BEQ done            ; If it's zero, we're done
-                STA COUNT           ; And save it to the count variable
+                LDX #<>START_POOL
 
-                INY
-                LDA [SRCPTR],Y      ; Get the byte to copy over
-                LDY #0
+loop            setas
+                LDA SPRITE.STATUS,X         ; Get the sprite's status
+                BPL ret_true                ; If ACTIVE not set, we've got one
 
-write_loop      STA [DSTPTR],Y      ; And write it to the destination
-                INY
-                CPY COUNT           ; Have we reached the end?
-                BNE write_loop      ; No: keep writing it
+                setal                       ; If INACTIVE, move to the next reocrd
+                TXA
+                CLC
+                ADC #SIZE(SPRITE)
+                TAX
 
-                setal
-                CLC                 ; Advance the destination pointer
-                LDA DSTPTR
-                ADC COUNT
-                STA DSTPTR
-                LDA DSTPTR+2
-                ADC #0
-                STA DSTPTR+2
+                CPX #<>END_OF_SPRITES       ; Have we checked all records?
+                BNE loop                    ; No: keep checking
 
-                CLC                 ; Advance the srouce pointer to the next pair
-                LDA SRCPTR
-                ADC #2
-                STA SRCPTR
-                LDA SRCPTR+2
-                ADC #0
-                STA SRCPTR+2
-                setas
+ret_false       PLP                         ; Return that we could not find a free sprite
+                CLC
+                RTS
 
-                BRA pair_loop       ; And check it
-
-done            PLP
+ret_true        PLP                         ; Return that we found a free sprite
+                SEC
                 RTS
                 .pend
 
                 .include "interrupts.s"
                 .include "tones.s"
-                .include "rsrc/colors.s"         ; Load the LUT for the game
+                .include "resources.s"              ; The code to manage reading resource data
+                .include "player.s"                 ; The code to manage the player and torpedo sprites
+                .include "enemies.s"                ; The code to manage the enemy ships and weapons
+                .include "rsrc/colors.s"            ; Load the LUT for the game
 .send
 
                 * = $110000
@@ -883,4 +524,5 @@ done            PLP
                 .include "rsrc/spaceship1_pix.s"
                 .include "rsrc/startiles.s"
                 .include "rsrc/torpedo.s"
+                .include "rsrc/purple_flier.s"
                 .include "rsrc/tone_pew.s"
